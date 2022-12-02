@@ -1,7 +1,7 @@
-from openpyxl.styles import PatternFill, Font, Alignment
-from openpyxl import Workbook, load_workbook
+from openpyxl import load_workbook
 import csv
 import xml.etree.ElementTree as ET
+import re
 
 from helper_func import folder_to_files
 
@@ -19,7 +19,6 @@ def well_compound_list(folder):
         plate_name = files.removesuffix(".xlsx").split("\\")[-1]
         # compound_data_org = {}
         compound_data[plate_name] = {}
-
         wb = load_workbook(filename=files)
         ws = wb.active
         for row, data in enumerate(ws):
@@ -50,14 +49,19 @@ def get_all_trans_data(file_trans):
     is_first_set = True
     first_set = None
     single_set = {}
+    single_set_working_list = {}
 
     wb = load_workbook(filename=file_trans)
     ws = wb.active
 
     for row, data in enumerate(ws):
+
         if row != 0:
 
             for col, cells in enumerate(data):
+
+                if col == 0:
+                    temp_comment = cells.value
 
                 if col == 1:
                     temp_plate = cells.value
@@ -66,6 +70,8 @@ def get_all_trans_data(file_trans):
 
                     if temp_plate[:-2] != first_set:
                         is_first_set = False
+
+                    temp_destination_plate = f"plate-{temp_plate[-1:]}"
 
                     try:
                         all_plate_trans[temp_plate[:-2]]
@@ -83,8 +89,10 @@ def get_all_trans_data(file_trans):
                         except KeyError:
                             single_set[temp_plate[:-2]] = {}
 
-                # if col == 2:
-                #     temp_well = cells.value
+                if col == 2:
+                    temp_dest_well = cells.value
+                    temp_dest_well_list = re.split("(\d+)", temp_dest_well)
+                    temp_dest_well = f"{temp_dest_well_list[0]}{int(temp_dest_well_list[1])}"
 
                 if col == 3:
                     temp_compound = cells.value
@@ -92,54 +100,70 @@ def get_all_trans_data(file_trans):
                 if col == 4:
                     temp_vol = float(cells.value)
 
+                # if col == 5:
+                #     temp_source_well = cells.value
+
                 if col == 6:
-                    temp_source = cells.value
+                    temp_source_plate = cells.value
+
+                if col == 7:
+                    temp_source_plate_type = cells.value
 
                     try:
-                        all_plate_trans[temp_plate[:-2]][temp_source]
+                        all_plate_trans[temp_plate[:-2]][temp_source_plate]
                     except KeyError:
-                        all_plate_trans[temp_plate[:-2]][temp_source] = {}
+                        all_plate_trans[temp_plate[:-2]][temp_source_plate] = {}
 
                     try:
-                        all_plate_trans[temp_plate][temp_source]
+                        all_plate_trans[temp_plate][temp_source_plate]
                     except KeyError:
-                        all_plate_trans[temp_plate][temp_source] = {}
+                        all_plate_trans[temp_plate][temp_source_plate] = {}
 
                     if is_first_set:
                         try:
-                            single_set[temp_plate[:-2]][temp_source]
+                            single_set[temp_plate[:-2]][temp_source_plate]
                         except KeyError:
-                            single_set[temp_plate[:-2]][temp_source] = {}
+                            single_set[temp_plate[:-2]][temp_source_plate] = {}
 
             try:
-                all_plate_trans[temp_plate][temp_source][temp_compound]
+                all_plate_trans[temp_plate][temp_source_plate][temp_compound]
             except KeyError:
-                all_plate_trans[temp_plate][temp_source][temp_compound] = {}
+                all_plate_trans[temp_plate][temp_source_plate][temp_compound] = {}
             try:
-                all_plate_trans[temp_plate][temp_source][temp_compound]["vol_needed"] += temp_vol
+                all_plate_trans[temp_plate][temp_source_plate][temp_compound]["vol_needed"] += temp_vol
             except KeyError:
-                all_plate_trans[temp_plate][temp_source][temp_compound]["vol_needed"] = 0
+                all_plate_trans[temp_plate][temp_source_plate][temp_compound]["vol_needed"] = 0
 
             try:
-                all_plate_trans[temp_plate[:-2]][temp_source][temp_compound]
+                all_plate_trans[temp_plate[:-2]][temp_source_plate][temp_compound]
             except KeyError:
-                all_plate_trans[temp_plate[:-2]][temp_source][temp_compound] = {}
+                all_plate_trans[temp_plate[:-2]][temp_source_plate][temp_compound] = {}
             try:
-                all_plate_trans[temp_plate[:-2]][temp_source][temp_compound]["vol_needed"] += temp_vol
+                all_plate_trans[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] += temp_vol
             except KeyError:
-                all_plate_trans[temp_plate[:-2]][temp_source][temp_compound]["vol_needed"] = 0
+                all_plate_trans[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] = 0
 
             if is_first_set:
                 try:
-                    single_set[temp_plate[:-2]][temp_source][temp_compound]
+                    single_set[temp_plate[:-2]][temp_source_plate][temp_compound]
                 except KeyError:
-                    single_set[temp_plate[:-2]][temp_source][temp_compound] = {}
+                    single_set[temp_plate[:-2]][temp_source_plate][temp_compound] = {}
                 try:
-                    single_set[temp_plate[:-2]][temp_source][temp_compound]["vol_needed"] += temp_vol
+                    single_set[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] += temp_vol
                 except KeyError:
-                    single_set[temp_plate[:-2]][temp_source][temp_compound]["vol_needed"] = 0
+                    single_set[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] = 0
 
-    return all_plate_trans, single_set
+                single_set_working_list[row] = {"destination_plate": temp_destination_plate,
+                                                "destination_well": temp_dest_well,
+                                                "compound": temp_compound,
+                                                "volume_nl": temp_vol,
+                                                "source_plate": temp_source_plate,
+                                                "source_well": "",
+                                                "sample_comment": temp_comment,
+                                                "plate_type": temp_source_plate_type
+                                                }
+
+    return all_plate_trans, single_set, single_set_working_list
 
 
 def get_survey_csv_data(path):
@@ -151,14 +175,11 @@ def get_survey_csv_data(path):
     survey_data = {}
 
     file_list = folder_to_files(path)
-
     for file in file_list:
         plate_name = file.split("\\")[-1].split(".")[0]
-        if file.endswith(".xml") and plate_name.startswith("Survey"):
-
+        if file.endswith(".csv"):
             barcode = "_".join(plate_name.split("_")[1:])
-            # print(plate_name)
-            # print(barcode)
+
             try:
                 survey_data[barcode]
             except KeyError:
@@ -180,7 +201,7 @@ def get_survey_csv_data(path):
                                 temp_well = f"{col_letter}{index}"
                                 if data:
                                     survey_data[barcode][plate_name][temp_well] = data
-        return survey_data
+    return survey_data
 
 
 def get_xml_trans_data_skipping_wells(path):
@@ -338,3 +359,43 @@ def get_xml_trans_data_printing_wells(path):
                             source_well, "volume": volume}
 
     return all_trans_data
+
+
+def get_comments(all_trans_file):
+    wb = load_workbook(all_trans_file)
+    ws = wb.active
+
+    # all_wells = {}
+
+    for row_index, row in enumerate(ws):
+        if row_index > 0:
+            for clm, data in enumerate(row):
+                if clm == 0:
+                    comment = data.value
+                elif clm == 1:
+                    destination_plate = data.value
+                elif clm == 2:
+                    destination_well = data.value
+                elif clm == 3:
+                    compound = data.value
+                elif clm == 4:
+                    volume = data.value
+                elif clm == 5:
+                    source_well = data.value
+                elif clm == 6:
+                    source_plate = data.value
+                else:
+                    source_plate_type = data.value
+
+                    # try:
+                    #     all_wells[source_plate]
+                    # except KeyError:
+                    #     all_wells[source_plate] = {}
+                    #
+                    # try:
+                    #     all_wells[source_plate][source_well]
+                    # except KeyError:
+                    #     all_wells[source_plate][source_well] = {"counter": 1, "volume": float(volume), "compound": compound}
+                    # else:
+                    #     all_wells[source_plate][source_well]["counter"] += 1
+                    #     all_wells[source_plate][source_well]["volume"] += float(volume)

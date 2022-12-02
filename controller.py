@@ -3,7 +3,7 @@ import configparser
 import threading
 
 from gui import main_layout, popup_controller
-from excle_handler_echo_data import excel_controller
+from reports import skipped_well_controller
 from helper_func import config_writer, config_header_to_list, progressbar
 from e_mail import listening_controller
 
@@ -25,7 +25,7 @@ def main(config):
                 if file_name:
                     save_location = sg.popup_get_folder("Save Location")
                     if save_location:
-                        excel_controller(data_location, file_name, save_location)
+                        skipped_well_controller(data_location, file_name, save_location)
                         sg.popup("Done")
 
         if event == "-LISTEN-":

@@ -1,59 +1,142 @@
 from openpyxl.styles import PatternFill, Font, Alignment
-from openpyxl import Workbook, load_workbook
-import xml.etree.ElementTree as ET
-
-from get_data import get_xml_trans_data_printing_wells, well_compound_list
+from openpyxl import Workbook
 
 
-def rename_source_plates(trans_data, prefix_dict):
+from get_data import well_compound_list, get_survey_csv_data, get_all_trans_data
 
 
-    for trans in trans_data:
-        temp_source_plate = trans_data[trans]["source_plate"]
-        temp_date = trans_data[trans]["date"]
-        for prefix in prefix_dict:
-            if prefix_dict[prefix]["start"] < temp_date < prefix_dict[prefix]["end"]:
-                trans_data[trans]["source_plate"] = f"{prefix}_{temp_source_plate}"
+def _compound_to_survey(plate_layout, survey_data):
+
+    survey_layout = {}
+
+    for plates in survey_data:
+
+        try:
+            survey_layout[plates]
+        except KeyError:
+            survey_layout[plates] = {}
+
+        for plate_names in survey_data[plates]:
+
+            for well in survey_data[plates][plate_names]:
+
+                if survey_data[plates][plate_names][well] != 0:
+
+                    try:
+                        temp_compound = plate_layout[plate_names][well]
+                    except KeyError:
+                        temp_compound = "No compound match found"
+                    temp_vol = survey_data[plates][plate_names][well]
+
+                    try:
+                        survey_layout[plates][temp_compound]
+                    except KeyError:
+                        survey_layout[plates][temp_compound] = {}
+
+                    try:
+                        survey_layout[plates][temp_compound][plate_names]
+                    except KeyError:
+                        survey_layout[plates][temp_compound][plate_names] = {}
+
+                    try:
+                        survey_layout[plates][temp_compound][plate_names][well]
+                    except KeyError:
+                        survey_layout[plates][temp_compound][plate_names][well] = ""
+
+                    survey_layout[plates][temp_compound][plate_names][well] = float(temp_vol)
+
+    return survey_layout
 
 
-def write_report(trans_data, compound_data):
+def _write_new_worklist(set_data, survey_layout, dead_vol_ul, set_amount, save_file):
     wb = Workbook()
     ws = wb.active
-    ws.title = "Report"
+    breaking = False
     row = 1
     col = 1
 
-    # Headers
-    ws.cell(row=row, column=col + 0, value="Source Plates").font = Font(bold=True)
-    ws.cell(row=row, column=col + 1, value="Source Well").font = Font(bold=True)
-    ws.cell(row=row, column=col + 2, value="Volume").font = Font(bold=True)
-    ws.cell(row=row, column=col + 3, value="Destination Well").font = Font(bold=True)
-    ws.cell(row=row, column=col + 4, value="Destination Plates").font = Font(bold=True)
-    ws.cell(row=row, column=col + 5, value="Compound").font = Font(bold=True)
-    ws.cell(row=row, column=col + 6, value="Comments").font = Font(bold=True)
+    error_missing_survey_data = "Missing survey Data"
+    error_missing_liquid = "Not enough liquid"
 
-    for trans in trans_data:
+    # headers:
+    ws.cell(row=row, column=col + 0, value="source_plates").font = Font(bold=True)
+    ws.cell(row=row, column=col + 1, value="source_well").font = Font(bold=True)
+    ws.cell(row=row, column=col + 2, value="volume").font = Font(bold=True)
+    ws.cell(row=row, column=col + 3, value="destination_well").font = Font(bold=True)
+    ws.cell(row=row, column=col + 4, value="destination_plates").font = Font(bold=True)
+    ws.cell(row=row, column=col + 5, value="compound").font = Font(bold=True)
+    ws.cell(row=row, column=col + 6, value="comments").font = Font(bold=True)
+
+    row += 1
+
+    set_number = 1
+    for sets in range(set_amount):
+        for rows in set_data:
+            destination_plate = f"{set_number + sets}-{set_data[rows]['destination_plate']}"
+            destination_well = set_data[rows]["destination_well"]
+            compound = set_data[rows]["compound"]
+            volume_nl = float(set_data[rows]["volume_nl"])
+            volume_ul = volume_nl/1000
+            sample_comment = set_data[rows]["sample_comment"]
+            source_plate_origin = set_data[rows]["source_plate"]
+            plate_type = set_data[rows]["plate_type"]
+            try:
+                survey_layout[source_plate_origin][compound]
+            except KeyError:
+                source_plate = error_missing_survey_data
+                source_well = error_missing_survey_data
+            else:
+                for temp_plates in survey_layout[source_plate_origin][compound]:
+                    for wells in survey_layout[source_plate_origin][compound][temp_plates]:
+                        if survey_layout[source_plate_origin][compound][temp_plates][wells] >= volume_ul + dead_vol_ul[plate_type]:
+                            source_plate = temp_plates
+                            source_well = wells
+                            survey_layout[source_plate_origin][compound][temp_plates][wells] -= volume_ul
+                            breaking = True
+                            break
+                        else:
+                            source_plate = error_missing_liquid
+                            source_well = error_missing_liquid
+
+                    if breaking:
+                        breaking = False
+                        break
+            if source_plate == error_missing_survey_data or source_plate == error_missing_liquid:
+                ws.cell(row=row, column=col + 0, value=source_plate).fill = PatternFill(start_color='B284BE',
+                                                                                        end_color='B284BE',
+                                                                                        fill_type='solid')
+                ws.cell(row=row, column=col + 1, value=source_well).fill = PatternFill(start_color='B284BE',
+                                                                                       end_color='B284BE',
+                                                                                       fill_type='solid')
+                ws.cell(row=1, column=1).fill = PatternFill(start_color='B284BE', end_color='B284BE',
+                                                                         fill_type='solid')
+                ws.cell(row=1, column=2).fill = PatternFill(start_color='B284BE', end_color='B284BE',
+                                                            fill_type='solid')
+
+            else:
+                ws.cell(row=row, column=col + 0, value=source_plate)
+                ws.cell(row=row, column=col + 1, value=source_well)
+            ws.cell(row=row, column=col + 2, value=volume_nl)
+            ws.cell(row=row, column=col + 3, value=destination_well)
+            ws.cell(row=row, column=col + 4, value=destination_plate)
+            ws.cell(row=row, column=col + 5, value=compound)
+            ws.cell(row=row, column=col + 6, value=sample_comment)
+            row += 1
+
+    wb.save(save_file)
 
 
+def new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location, save_file_name):
+    save_file = f"{save_location}/{save_file_name}.xlsx"
+    survey_data = get_survey_csv_data(survey_folder)
+    plate_layout = well_compound_list(plate_layout_folder)
+    _, _, set_compound_data = get_all_trans_data(file_trans)
 
+    survey_layout = _compound_to_survey(plate_layout, survey_data)
 
-def excel_controller(trans_data_folder, plate_layout_folder, data_location, file_name, save_location):
-    trans_data = get_xml_trans_data_printing_wells(trans_data_folder)
-    compound_data = well_compound_list(plate_layout_folder)
+    _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amount, save_file)
 
-    prefix_on = True
-    prefix_dict = {"OLD": {"start": "2022-11-22", "end": "2022-12-01"},
-              "NEW": {"start": "2022-10-01", "end": "2022-10-22"}}
-    if prefix_on:
-        rename_source_plates(trans_data, prefix_dict)
-
-    write_report(trans_data, compound_data)
-
-
-
-
-
-    return "Done"
+    print("done")
 
 
 if __name__ == "__main__":
@@ -62,11 +145,18 @@ if __name__ == "__main__":
     data_location = "C:/Users/phch/Desktop/more_data_files/2022-11-22"
     file_name = "test_trans_report"
     save_location = "C:/Users/phch/Desktop/more_data_files/"
-
+    all_trans_file = "C:/Users/phch/Desktop/more_data_files/all_trans.xlsx"
+    survey_folder = "C:/Users/phch/Desktop/more_data_files/surveys"
     path = "C:/Users/phch/Desktop/echo_data"
+    save_file_name = "test_new_worklist"
 
-    excel_controller(trans_data_folder, plate_layout_folder, data_location, file_name, save_location)
+    dead_vol_ul = {"LDV": 2.5, "PP": 15.0}
 
+    set_amount = 1
+
+    new_worklist(survey_folder, plate_layout_folder, all_trans_file, set_amount, dead_vol_ul, save_location, save_file_name)
+    # excel_controller(trans_data_folder, plate_layout_folder, all_trans_file, data_location, file_name, save_location)
+    # get_comments(all_trans_file)
 
     # print(file_names(path))
 

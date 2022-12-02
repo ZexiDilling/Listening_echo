@@ -1,13 +1,13 @@
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl import Workbook, load_workbook
-import csv
 import xml.etree.ElementTree as ET
+from math import floor
 
 from get_data import well_compound_list, get_all_trans_data, get_survey_csv_data
 from helper_func import folder_to_files
 
 
-def write_data_xml(compound_data_end, plates, save_filename):
+def _write_data_xml(compound_data_end, plates, save_filename):
     print("typing")
 
     wb = Workbook()
@@ -63,8 +63,8 @@ def write_data_xml(compound_data_end, plates, save_filename):
     print("done")
 
 
-def write_data_csv(compound_data_end, plates, save_filename):
-
+def _write_data_csv(compound_data_end, plates, save_filename):
+    print(compound_data_end)
     wb = Workbook()
     ws = wb.active
 
@@ -78,11 +78,13 @@ def write_data_csv(compound_data_end, plates, save_filename):
     ws.cell(row=row, column=col + 3, value="Volume_needed(nL)")
     ws.cell(row=row, column=col + 4, value="Volume_left_total(uL)")
     ws.cell(row=row, column=col + 5, value="Amount_sets")
-    ws.cell(row=row, column=col + 6, value="working_volume_left")
+    ws.cell(row=row, column=col + 6, value="working_volume_left(uL)")
+    ws.cell(row=row, column=col + 7, value="Amount_sets (based on working vol)")
 
     row += 1
     temp_Set = ""
     temp_total = {}
+    temp_total_dead = {}
     temp_plate_spacer = {}
     ldv_dead_vol = 2.5
     for plate_set in plates:
@@ -93,18 +95,22 @@ def write_data_csv(compound_data_end, plates, save_filename):
         for barcode in plates[plate_set]:
             try:
                 temp_total[barcode]
+                temp_total_dead[barcode]
                 temp_plate_spacer[barcode]
             except KeyError:
                 temp_total[barcode] = {}
+                temp_total_dead[barcode] = {}
                 temp_plate_spacer[barcode] = {}
 
             for compound in plates[plate_set][barcode]:
 
                 try:
                     temp_total[barcode][compound]
+                    temp_total_dead[barcode][compound]
                     temp_plate_spacer[barcode][compound]
                 except KeyError:
                     temp_total[barcode][compound] = 0
+                    temp_total_dead[barcode][compound] = 0
                     temp_plate_spacer[barcode][compound] = 0
 
                 for volume in plates[plate_set][barcode][compound]:
@@ -119,32 +125,34 @@ def write_data_csv(compound_data_end, plates, save_filename):
                         except KeyError:
                             ws.cell(row=row, column=col + 4, value="Not Found")
                         else:
-                            temp_plate_counter = len(compound_data_end[compound][barcode])
+
                             for plate_name in compound_data_end[compound][barcode]:
 
-                                w_col = col + 6 + temp_plate_spacer[barcode][compound]
+                                w_col = col + 8 + temp_plate_spacer[barcode][compound]
                                 ws.cell(row=row, column=w_col, value=plate_name).font = Font(bold=True)
                                 ws.cell(row=row, column=w_col).fill = PatternFill(start_color='B284BE', end_color='B284BE',
                                                                          fill_type='solid')
                                 for counter, wells in enumerate(compound_data_end[compound][barcode][plate_name]):
-                                    vol_left = float(compound_data_end[compound][barcode][plate_name][wells])-ldv_dead_vol
-                                    vol_left = round(vol_left, 2)
-                                    if vol_left < 0:
-                                        vol_left = 0
+                                    vol_left = float(compound_data_end[compound][barcode][plate_name][wells])
                                     if wells == "total":
                                         temp_total[barcode][compound] += float(vol_left)
                                     else:
-                                        ws.cell(row=row, column=col + 6 + counter + temp_plate_spacer[barcode][compound]
+                                        vol_left -= ldv_dead_vol
+                                        if vol_left < 0:
+                                            vol_left = 0
+                                        vol_left = round(vol_left, 2)
+                                        temp_total_dead[barcode][compound] += float(vol_left)
+                                        ws.cell(row=row, column=col + 8 + counter + temp_plate_spacer[barcode][compound]
                                                 , value=f"{wells}/{vol_left}")
                                         if 0 < vol_left < 1:
                                             ws.cell(row=row,
-                                                    column=col + 6 + counter + temp_plate_spacer[barcode][compound]
+                                                    column=col + 8 + counter + temp_plate_spacer[barcode][compound]
                                                     ).fill = PatternFill(start_color='FFFF00', end_color='FFFF00',
                                                                          fill_type='solid')
 
-                                        if vol_left == 0:
+                                        elif vol_left == 0 or vol_left < 0:
                                             ws.cell(row=row,
-                                                    column=col + 6 + counter + temp_plate_spacer[barcode][compound]
+                                                    column=col + 8 + counter + temp_plate_spacer[barcode][compound]
                                                     ).fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000',
                                                                          fill_type='solid')
 
@@ -152,17 +160,19 @@ def write_data_csv(compound_data_end, plates, save_filename):
 
                             ws.cell(row=row, column=col + 4, value=temp_total[barcode][compound])
                             set_amount = temp_total[barcode][compound] / (vol_needed / 1000)
+                            set_amount = floor(set_amount)
                             ws.cell(row=row, column=col + 5, value=set_amount)
-
-
-
+                            ws.cell(row=row, column=col + 6, value=temp_total_dead[barcode][compound])
+                            set_amount_dead = temp_total_dead[barcode][compound] / (vol_needed / 1000)
+                            set_amount_dead = floor(set_amount_dead)
+                            ws.cell(row=row, column=col + 7, value=set_amount_dead)
 
                         row += 1
 
     wb.save(save_filename)
 
 
-def get_survey_xml_data(path):
+def _get_survey_xml_data(path):
 
     survey_data = {}
 
@@ -205,7 +215,7 @@ def get_survey_xml_data(path):
     return survey_data
 
 
-def survey_to_compound_csv(well_data, survey_data):
+def _survey_to_compound_csv(well_data, survey_data):
     compound_data_end = {}
 
     for barcode in survey_data:
@@ -238,7 +248,7 @@ def survey_to_compound_csv(well_data, survey_data):
     return compound_data_end
 
 
-def survey_to_compound_xml(well_data, survey_data):
+def _survey_to_compound_xml(well_data, survey_data):
     compound_data_end = {}
 
     for barcode in survey_data:
@@ -257,16 +267,17 @@ def survey_to_compound_xml(well_data, survey_data):
     return compound_data_end
 
 
-def controller(survey_folder_csv, plate_layout_folder, save_file_name, save_location):
-    _, _, compound_list = folder_to_files(plate_layout_folder)
+def survey_controller(survey_folder_csv, plate_layout_folder, save_file_name, save_location):
+    # compound_list = folder_to_files(plate_layout_folder)
     file_save = f"{save_location}/{save_file_name}.xlsx"
 
-    compound_data = well_compound_list(survey_folder_csv)
+    compound_data = well_compound_list(plate_layout_folder)
 
     _, single_set = get_all_trans_data(file_trans)
     survey_data_csv = get_survey_csv_data(survey_folder_csv)
-    compound_data_end = survey_to_compound_csv(compound_data, survey_data_csv)
-    write_data_csv(compound_data_end, single_set, file_save)
+
+    compound_data_end = _survey_to_compound_csv(compound_data, survey_data_csv)
+    _write_data_csv(compound_data_end, single_set, file_save)
 
 
 if __name__ == "__main__":
@@ -277,8 +288,8 @@ if __name__ == "__main__":
     file_save_location = "C:/Users/phch/Desktop/more_data_files"
     survey_folder_csv = "C:/Users/phch/Desktop/more_data_files/surveys"
     # print(file_names(path))
-    save_file_name = "test"
-    controller(survey_folder_csv, plate_layout_folder, save_file_name, file_save_location)
+    save_file_name = "survey_report"
+    survey_controller(survey_folder_csv, plate_layout_folder, save_file_name, file_save_location)
 
 
 
