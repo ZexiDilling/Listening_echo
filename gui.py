@@ -2,7 +2,12 @@ import PySimpleGUI as sg
 from helper_func import config_writer
 
 
-def menu():
+def _menu():
+    """
+    Top menu of the gui
+    :return: The top menu
+    :rtype: list
+    """
     menu_top_def = [
         # ["&File", ["&Open    Ctrl-O", "&Save    Ctrl-S", "---", '&Properties', "&Exit", ]],
         ["&Listening", ["Folder", ["In", "Out", ], "E-mail"], ],
@@ -12,7 +17,12 @@ def menu():
     return layout
 
 
-def gui_main_layout():
+def _gui_main_layout():
+    """
+    The main layout for the gui
+    :return: The main layout for the gui
+    :rtype: list
+    """
     main = sg.Frame("Listening", [[
         sg.Column([
             [sg.ProgressBar(100, key="-BAR-", size=(25, 5)), sg.Checkbox("KILL", visible=False, key="-KILL-")],
@@ -27,19 +37,33 @@ def gui_main_layout():
 
 
 def main_layout():
+    """
+    The main setup for the layout for the gui
+    :return: The setup and layout for the gui
+    :rtype: sg.Window
+    """
 
     # sg.theme()
-    top_menu = menu()
+    top_menu = _menu()
 
     layout = [[
         top_menu,
-        gui_main_layout()
+        _gui_main_layout()
     ]]
 
     return sg.Window("Echo Data", layout, finalize=True, resizable=True)
 
 
-def gui_popup_table(data, headings):
+def _gui_popup_table(data, headings):
+    """
+    Layout for a popup menu
+    :param data: The data that needs to be displayed
+    :type data: list
+    :param headings: The headings of the table where the data is displayed
+    :type headings: list
+    :return: The popup window
+    :rtype: sg.Window
+    """
     # headings = ["Source Plate", "Source Well", "Volume Needed", "Volume left", "Counters", "New Well"]
 
     col = sg.Frame("Table", [[
@@ -56,7 +80,17 @@ def gui_popup_table(data, headings):
 
 
 def popup_controller(data, config, headings):
-    window = gui_popup_table(data, headings)
+    """
+    A popup menu
+    :param data: The data that needs to be displayed
+    :type data: list
+    :param config: The config handler, with all the default information in the config file.
+    :type config: configparser.ConfigParser
+    :param headings: The headings of the table where the data is displayed
+    :type headings: list
+    :return:
+    """
+    window = _gui_popup_table(data, headings)
 
     while True:
         event, values = window.read()

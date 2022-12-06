@@ -5,7 +5,16 @@ from get_data import *
 
 
 def _write_to_excel_plate_transferees_list_of_plates(wb, data):
+    """
+    Writes witch source plates goes to witch destination plate
+    :param wb: excel Workbook
+    :type wb: openpyxl.workbook.workbook.Workbook
+    :param data: Data with all plate transferees
+    :type data: dict
+    :return:
+    """
 
+    # Create the sheets and name it
     ws = wb.create_sheet('Plate_trans_list')
 
     # write headers
@@ -18,6 +27,7 @@ def _write_to_excel_plate_transferees_list_of_plates(wb, data):
     col = 1
     row = 2
 
+    #writes the data
     for destination in data:
         ws.cell(row=row, column=col, value=destination)
         for index, source in enumerate(data[destination]):
@@ -26,8 +36,14 @@ def _write_to_excel_plate_transferees_list_of_plates(wb, data):
         row += 1
 
 
-def _write_to_excel_plate_transferees(wb, data):
+def _write_to_excel_plate_transferees(wb, data):    # TODO description
+    """
 
+    :param wb: excel Workbook
+    :type wb: openpyxl.workbook.workbook.Workbook
+    :param data:
+    :return:
+    """
     ws = wb.create_sheet('Plate_trans_counter')
 
     # split the data up by ","
@@ -48,7 +64,15 @@ def _write_to_excel_plate_transferees(wb, data):
         row += 1
 
 
-def _write_to_excel_error_report(wb, data, type):
+def _write_to_excel_error_report(wb, data, type): # TODO description
+    """
+
+    :param wb: excel Workbook
+    :type wb: openpyxl.workbook.workbook.Workbook
+    :param data:
+    :param type:
+    :return:
+    """
     # Error_Report
     # all data
     ws = wb.create_sheet(f"{type}")
@@ -85,7 +109,15 @@ def _write_to_excel_error_report(wb, data, type):
         i = int(n)*2+i
 
 
-def _write_work_list(wb, data, type):
+def _write_work_list(wb, data, type): # TODO description
+    """
+
+    :param wb: excel Workbook
+    :type wb: openpyxl.workbook.workbook.Workbook
+    :param data:
+    :param type:
+    :return:
+    """
     ws = wb.create_sheet(f'{type}_worklist')
 
     row = 1
@@ -113,7 +145,16 @@ def _write_work_list(wb, data, type):
                 row += 1
 
 
-def _skip_report(wb, skipped_wells, skip_well_counter, working_list):
+def _skip_report(wb, skipped_wells, skip_well_counter, working_list): # TODO description
+    """
+
+    :param wb: excel Workbook
+    :type wb: openpyxl.workbook.workbook.Workbook
+    :param skipped_wells:
+    :param skip_well_counter:
+    :param working_list:
+    :return:
+    """
     ws = wb.active
     ws.title = "Overview_Report"
     row = 1
@@ -173,7 +214,7 @@ def _skip_report(wb, skipped_wells, skip_well_counter, working_list):
         temp_col += 4
 
 
-def skipped_well_controller(data_location, file_name, save_location):
+def skipped_well_controller(data_location, file_name, save_location): # TODO description
     wb = Workbook()
     all_data, skipped_wells, skip_well_counter, working_list, trans_plate_counter, all_trans_counter = \
         get_xml_trans_data_skipping_wells(data_location)
@@ -187,7 +228,7 @@ def skipped_well_controller(data_location, file_name, save_location):
     return "Done"
 
 
-def _rename_source_plates(trans_data, prefix_dict):
+def _rename_source_plates(trans_data, prefix_dict): # TODO description
 
 
     for trans in trans_data:
@@ -198,7 +239,7 @@ def _rename_source_plates(trans_data, prefix_dict):
                 trans_data[trans]["source_plate"] = f"{prefix}_{temp_source_plate}"
 
 
-def _write_trans_report(trans_data, compound_data, save_file):
+def _write_trans_report(trans_data, compound_data, save_file): # TODO description
     wb = Workbook()
     ws = wb.active
     ws.title = "Report"
@@ -235,7 +276,7 @@ def _write_trans_report(trans_data, compound_data, save_file):
     wb.save(save_file)
 
 
-def trans_report_controller(trans_data_folder, plate_layout_folder, all_trans_file, data_location, file_name, save_location):
+def trans_report_controller(trans_data_folder, plate_layout_folder, all_trans_file, data_location, file_name, save_location): # TODO description
     trans_data = get_xml_trans_data_printing_wells(trans_data_folder)
     compound_data = well_compound_list(plate_layout_folder)
     save_file = f"{save_location}/{file_name}.xlsx"
@@ -254,7 +295,7 @@ def trans_report_controller(trans_data_folder, plate_layout_folder, all_trans_fi
     return "Done"
 
 
-def well_report(trans_file, save_file):
+def well_report(trans_file, save_file): # TODO description
 
     wb = load_workbook(trans_file)
     ws = wb.active
@@ -323,7 +364,7 @@ def well_report(trans_file, save_file):
     print("done")
 
 
-def _compound_to_survey(plate_layout, survey_data):
+def _compound_to_survey(plate_layout, survey_data): # TODO description
 
     survey_layout = {}
 
@@ -366,7 +407,7 @@ def _compound_to_survey(plate_layout, survey_data):
     return survey_layout
 
 
-def _write_new_worklist(set_data, survey_layout, dead_vol_ul, set_amount, save_file):
+def _write_new_worklist(set_data, survey_layout, dead_vol_ul, set_amount, save_file): # TODO description
     wb = Workbook()
     ws = wb.active
     breaking = False
@@ -444,7 +485,7 @@ def _write_new_worklist(set_data, survey_layout, dead_vol_ul, set_amount, save_f
     wb.save(save_file)
 
 
-def new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location, save_file_name):
+def new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location, save_file_name): # TODO description
     save_file = f"{save_location}/{save_file_name}.xlsx"
     survey_data = get_survey_csv_data(survey_folder)
     plate_layout = well_compound_list(plate_layout_folder)

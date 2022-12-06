@@ -2,6 +2,7 @@ from openpyxl import load_workbook
 import csv
 import xml.etree.ElementTree as ET
 import re
+import os
 
 from helper_func import folder_to_files
 
@@ -9,8 +10,10 @@ from helper_func import folder_to_files
 def well_compound_list(folder):
     """
     Takes excel file with wells in clm 1 and compound name in clm 2
-    :param file:
-    :return:
+    :param folder: a folder with files
+    :type folder: str
+    :return: compound_data - Data for what compound is in each well, based on excel files data.
+    :rtype: dict
     """
     file_list = folder_to_files(folder)
 
@@ -41,8 +44,16 @@ def well_compound_list(folder):
 def get_all_trans_data(file_trans):
     """
     Takes excel data. all_transferees.
-    :param file_trans:
+    :param file_trans: a file with all the transferees
+    :type file_trans: str
     :return:
+    all_plate_trans - all transferees, volume, wells and data for all transferees
+    single_set - all transferees and data for a single set
+    single_set_working_list - The information needed to create a workinglist, for a single set of plates, can be used
+        for scaling up
+    :rtype all_plate_trans: dict
+    :rtype single_set: dict
+    :rtype single_set_working_list: dict
     """
 
     all_plate_trans = {}
@@ -168,9 +179,11 @@ def get_all_trans_data(file_trans):
 
 def get_survey_csv_data(path):
     """
-    get survey data from CSV files
-    :param path:
-    :return:
+    get survey data from CSV files - this is done by the echo from the main control modul. and is a standalone operation
+    :param path: the path to the file
+    :type path: str
+    :return: survey_data - All the information from the survey
+    :rtype: dict
     """
     survey_data = {}
 
@@ -205,6 +218,27 @@ def get_survey_csv_data(path):
 
 
 def get_xml_trans_data_skipping_wells(path):
+    """
+    Looking through a transferee XML-file from the ECHO. and looking to see if there are any skipped wells for the
+    transferee. If there are skipped wells.
+    Skipped wells, are wells that have not been transferred due to different reasons.
+    :param path: A path to the file.
+    :type path: str
+    :returns:
+    all_data - All the data from the missing transferees
+    skipped_wells - What wells are skipped
+    skip_well_counter - Count how many times a single well is skipped
+    working_list
+    trans_plate_counter
+    all_trans_counter
+    :rtype all_data: list
+    :rtype skipped_wells: dict
+    :rtype skip_well_counter: int
+    :rtype working_list: dict
+    :rtype trans_plate_counter: list
+    :rtype all_trans_counter: dict
+    """
+
     # random data
     skipped_wells = {}
     working_list = {}
@@ -218,11 +252,17 @@ def get_xml_trans_data_skipping_wells(path):
     # counting transferees all data
     all_trans_counter = {}
 
-    file_list = folder_to_files(path)
+    # checks if path is a directory
+    isDirectory = os.path.isdir(path)
+    if isDirectory:
+        file_list = folder_to_files(path)
+    else:
+        file_list = [path]
 
     for files in file_list:
 
         if files.split("\\")[-1].startswith("Transfer"):
+            print(files)
             # path = self.file_names(self.main_folder)
             doc = ET.parse(files)
             root = doc.getroot()
@@ -309,13 +349,18 @@ def get_xml_trans_data_skipping_wells(path):
 
     # remove duplicates from the list
     trans_plate_counter = list(dict.fromkeys(trans_plate_counter))
-
-    return all_data, skipped_wells, skip_well_counter, working_list, trans_plate_counter, \
-           all_trans_counter
+    print(skip_well_counter)
+    return all_data, skipped_wells, skip_well_counter, working_list, trans_plate_counter, all_trans_counter
 
 
 def get_xml_trans_data_printing_wells(path):
-
+    """
+    Getting all the data for successful transferees
+    :param path: the path to the file
+    :type path: str
+    :return: all_trans_data - All data for the transferee
+    :rtype: dict
+    """
     all_trans_data = {}
 
     file_list = folder_to_files(path)
@@ -362,6 +407,11 @@ def get_xml_trans_data_printing_wells(path):
 
 
 def get_comments(all_trans_file):
+    """
+
+    :param all_trans_file:
+    :return:
+    """
     wb = load_workbook(all_trans_file)
     ws = wb.active
 

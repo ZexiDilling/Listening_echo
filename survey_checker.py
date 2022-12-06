@@ -60,7 +60,7 @@ def _write_data_xml(compound_data_end, plates, save_filename):
                         row += 1
 
     wb.save(save_filename)
-    print("done")
+    print("done") # TODO description
 
 
 def _write_data_csv(compound_data_end, plates, save_filename):
@@ -169,10 +169,10 @@ def _write_data_csv(compound_data_end, plates, save_filename):
 
                         row += 1
 
-    wb.save(save_filename)
+    wb.save(save_filename) # TODO description
 
 
-def _get_survey_xml_data(path):
+def _get_survey_xml_data(path): # TODO description
 
     survey_data = {}
 
@@ -215,7 +215,7 @@ def _get_survey_xml_data(path):
     return survey_data
 
 
-def _survey_to_compound_csv(well_data, survey_data):
+def _survey_to_compound_csv(well_data, survey_data): # TODO description
     compound_data_end = {}
 
     for barcode in survey_data:
@@ -248,7 +248,7 @@ def _survey_to_compound_csv(well_data, survey_data):
     return compound_data_end
 
 
-def _survey_to_compound_xml(well_data, survey_data):
+def _survey_to_compound_xml(well_data, survey_data): # TODO description
     compound_data_end = {}
 
     for barcode in survey_data:
@@ -267,7 +267,7 @@ def _survey_to_compound_xml(well_data, survey_data):
     return compound_data_end
 
 
-def survey_controller(survey_folder_csv, plate_layout_folder, save_file_name, save_location):
+def survey_controller(survey_folder_csv, plate_layout_folder, save_file_name, save_location): # TODO description
     # compound_list = folder_to_files(plate_layout_folder)
     file_save = f"{save_location}/{save_file_name}.xlsx"
 

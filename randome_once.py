@@ -4,7 +4,16 @@ import xml.etree.ElementTree as ET
 
 from helper_func import folder_to_files
 
+
 def convert(file, save_location):
+    """
+    convert files
+    :param file: the path to the file that needs to be converted
+    :type file: str
+    :param save_location: The location where the converted file will be saved
+    :type save_location: str
+    :return:
+    """
     wb = load_workbook(file)
     ws = wb.active
 

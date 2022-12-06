@@ -9,6 +9,12 @@ from e_mail import listening_controller
 
 
 def main(config):
+    """
+    The main GUI setup and control for the whole program
+    :param config: The config handler, with all the default information in the config file.
+    :type config: configparser.ConfigParser
+    :return:
+    """
 
     window = main_layout()
 

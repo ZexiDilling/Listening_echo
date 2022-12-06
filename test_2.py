@@ -1,8 +1,18 @@
-test_list = [1, 2, 3, 4, 5, 6, 7]
+import configparser
+import smtplib
+from email.message import EmailMessage
+from openpyxl import Workbook
 
-for i in range(10):
-    for x in test_list:
-        if x == 2:
-            print("breaking")
-            break
-    print(i)
+
+def tester(config, error):
+    print(type(Workbook()))
+
+
+
+
+if __name__ == "__main__":
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+    # print(type(config))
+    error = "HJÆLP "
+    tester(config, error)
