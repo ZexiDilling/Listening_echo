@@ -188,7 +188,7 @@ def _mail_setup(error_msg, all_data, config):
     for counts in range(missing_wells):
         transferee = all_data[4+(counts*2)]
         error = all_data[5+(counts*2)]
-        error_code = error[0:9]
+        error_code = error[9:18]
         trans_string += f"Transferee: {transferee} - Error: {error}"
 
         # Looking for known error messages
