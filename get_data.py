@@ -4,8 +4,6 @@ import xml.etree.ElementTree as ET
 import re
 import os
 
-from helper_func import folder_to_files
-
 
 def well_compound_list(folder):
     """
@@ -21,6 +19,7 @@ def well_compound_list(folder):
     for files in file_list:
         plate_name = files.removesuffix(".xlsx").split("\\")[-1]
         # compound_data_org = {}
+        plate_name = plate_name.replace("-", "_")
         compound_data[plate_name] = {}
         wb = load_workbook(filename=files)
         ws = wb.active
@@ -116,6 +115,7 @@ def get_all_trans_data(file_trans):
 
                 if col == 6:
                     temp_source_plate = cells.value
+                    temp_source_plate = temp_source_plate.replace("-", "_")
 
                 if col == 7:
                     temp_source_plate_type = cells.value
@@ -186,10 +186,10 @@ def get_survey_csv_data(path):
     :rtype: dict
     """
     survey_data = {}
-
     file_list = folder_to_files(path)
     for file in file_list:
         plate_name = file.split("\\")[-1].split(".")[0]
+        plate_name = plate_name.replace("-", "_")
         if file.endswith(".csv"):
             barcode = "_".join(plate_name.split("_")[1:])
 
@@ -222,8 +222,8 @@ def get_xml_trans_data_skipping_wells(path):
     Looking through a transferee XML-file from the ECHO. and looking to see if there are any skipped wells for the
     transferee. If there are skipped wells.
     Skipped wells, are wells that have not been transferred due to different reasons.
-    :param path: A path to the file.
-    :type path: str
+    :param path: A path to the file. or a list of file names
+    :type path: str or list
     :returns:
     all_data - All the data from the missing transferees
     skipped_wells - What wells are skipped
@@ -252,9 +252,16 @@ def get_xml_trans_data_skipping_wells(path):
     # counting transferees all data
     all_trans_counter = {}
 
+    # Data for completed plates:
+    zero_error_trans_plate = []
+    error_trans_plate = []
+    completed_plates = []
+
     # checks if path is a directory
-    isDirectory = os.path.isdir(path)
-    if isDirectory:
+
+    if type(path) == list:
+        file_list = path
+    elif os.path.isdir(path):
         file_list = folder_to_files(path)
     else:
         file_list = [path]
@@ -309,6 +316,7 @@ def get_xml_trans_data_skipping_wells(path):
                                 skipped_wells[barcode] = {}
                         if source_destination == "destination":
                             temp_dest_barcode = barcode
+                            error_trans_plate.append(temp_dest_barcode)
                             try:
                                 working_list[barcode]
                             except KeyError:
@@ -338,6 +346,14 @@ def get_xml_trans_data_skipping_wells(path):
                             skipped_wells[temp_barcode][n] = {"counter": 1, "vol": float(vt)}
 
                         working_list[temp_dest_barcode][temp_barcode].append(temp_trans)
+                else:
+                    # finds barcode for destination
+                    for plates in root.iter("plate"):
+                        barcode = plates.get("barcode")
+                        source_destination = plates.get("type")
+
+                        if source_destination == "destination":
+                            zero_error_trans_plate.append(barcode)
 
     # counting plates
     # counts the number of repeated barcodes and makes a list with the barcode and amount of
@@ -349,8 +365,19 @@ def get_xml_trans_data_skipping_wells(path):
 
     # remove duplicates from the list
     trans_plate_counter = list(dict.fromkeys(trans_plate_counter))
-    print(skip_well_counter)
-    return all_data, skipped_wells, skip_well_counter, working_list, trans_plate_counter, all_trans_counter
+    # print(skip_well_counter)
+    plates_to_remove = []
+    print(zero_error_trans_plate)
+    if zero_error_trans_plate:
+        for plates in zero_error_trans_plate:
+            if plates in error_trans_plate:
+                plates_to_remove.append(plates)
+
+        for plates in plates_to_remove:
+            zero_error_trans_plate.remove(plates)
+
+    return all_data, skipped_wells, skip_well_counter, working_list, trans_plate_counter, all_trans_counter, \
+           zero_error_trans_plate
 
 
 def get_xml_trans_data_printing_wells(path):
@@ -362,8 +389,10 @@ def get_xml_trans_data_printing_wells(path):
     :rtype: dict
     """
     all_trans_data = {}
-
-    file_list = folder_to_files(path)
+    if type(path) == list:
+        file_list = path
+    else:
+        file_list = folder_to_files(path)
 
     for files in file_list:
         if files.split("\\")[-1].startswith("Transfer"):
@@ -388,7 +417,6 @@ def get_xml_trans_data_printing_wells(path):
                         if source_destination == "source":
                             all_trans_data[trans_name]["source_plate"] = barcode
 
-
                         if source_destination == "destination":
                             all_trans_data[trans_name]["destination_plate"] = barcode
 
@@ -406,46 +434,19 @@ def get_xml_trans_data_printing_wells(path):
     return all_trans_data
 
 
-def get_comments(all_trans_file):
+
+def folder_to_files(folder_path):
     """
-
-    :param all_trans_file:
-    :return:
+    Gets all files in a folder in a list
+    :param folder_path: the path to the folder
+    :type folder_path: str
+    :return: A list of all the files in the folder
+    :rtype: list
     """
-    wb = load_workbook(all_trans_file)
-    ws = wb.active
+    file_list = []
 
-    # all_wells = {}
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            file_list.append(str(os.path.join(root, file)))
 
-    for row_index, row in enumerate(ws):
-        if row_index > 0:
-            for clm, data in enumerate(row):
-                if clm == 0:
-                    comment = data.value
-                elif clm == 1:
-                    destination_plate = data.value
-                elif clm == 2:
-                    destination_well = data.value
-                elif clm == 3:
-                    compound = data.value
-                elif clm == 4:
-                    volume = data.value
-                elif clm == 5:
-                    source_well = data.value
-                elif clm == 6:
-                    source_plate = data.value
-                else:
-                    source_plate_type = data.value
-
-                    # try:
-                    #     all_wells[source_plate]
-                    # except KeyError:
-                    #     all_wells[source_plate] = {}
-                    #
-                    # try:
-                    #     all_wells[source_plate][source_well]
-                    # except KeyError:
-                    #     all_wells[source_plate][source_well] = {"counter": 1, "volume": float(volume), "compound": compound}
-                    # else:
-                    #     all_wells[source_plate][source_well]["counter"] += 1
-                    #     all_wells[source_plate][source_well]["volume"] += float(volume)
+    return file_list

@@ -8,7 +8,13 @@ from helper_func import folder_to_files
 
 
 def _write_data_xml(compound_data_end, plates, save_filename):
-    print("typing")
+    """
+    # TODO description
+    :param compound_data_end:
+    :param plates:
+    :param save_filename:
+    :return:
+    """
 
     wb = Workbook()
     ws = wb.active
@@ -60,11 +66,10 @@ def _write_data_xml(compound_data_end, plates, save_filename):
                         row += 1
 
     wb.save(save_filename)
-    print("done") # TODO description
 
 
 def _write_data_csv(compound_data_end, plates, save_filename):
-    print(compound_data_end)
+    # TODO description
     wb = Workbook()
     ws = wb.active
 
@@ -169,7 +174,7 @@ def _write_data_csv(compound_data_end, plates, save_filename):
 
                         row += 1
 
-    wb.save(save_filename) # TODO description
+    wb.save(save_filename)
 
 
 def _get_survey_xml_data(path): # TODO description

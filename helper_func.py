@@ -1,23 +1,3 @@
-import os
-import time
-
-
-def folder_to_files(folder_path):
-    """
-    Gets all files in a folder in a list
-    :param folder_path: the path to the folder
-    :type folder_path: str
-    :return: A list of all the files in the folder
-    :rtype: list
-    """
-    file_list = []
-
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            file_list.append(str(os.path.join(root, file)))
-
-    return file_list
-
 
 def config_writer(config, heading, data_dict):
     """
@@ -56,31 +36,54 @@ def config_header_to_list(config, header):
     return table_data
 
 
-def progressbar(run, window):
+def clear_file(file, config):
     """
-    The progress bar, that shows the program working
-    :param run: If the bar needs to be running or not
-    :type run: bool
-    :param window: Where the bar is displayed
-    :type window: PySimpleGUI.PySimpleGUI.Window
+    clears the file for data
+    :param file: the files that needs to be cleared. reffed in config
+    :type file: str
+    :param config:
     :return:
     """
-    min = 0
-    max = 100
-    counter = 0
-    while run:
-        if counter == min:
-            runner = "pos"
-        elif counter == max:
-            runner = "neg"
-        if runner == "pos":
-            counter += 10
-        elif runner == "neg":
-            counter -= 10
+    with open(config["Temp_files"][file], "w") as f:
+        f.close()
 
-        window["-BAR-"].update(counter)
 
-        time.sleep(0.1)
-        if window["-KILL-"].get():
-            run = False
+def write_temp_list_file(temp_file_name, file, config):
+    """
+    Writes file names to a list
+    :param file: the file that needs to be written
+    :type file: str
+    :param config: the config file
+    :return:
+    """
+    trans_list_file = config["Temp_files"][temp_file_name]
 
+    with open(trans_list_file, "a") as f:
+        f.write(file)
+        f.write(",")
+
+
+def read_temp_list_file(temp_file_name, config):
+    """
+    Reads the txt-file with all the trans files in it.
+    :param config:
+    :return: a list of all the trans files
+    :rtype: list
+    """
+
+    with open(config["Temp_files"][temp_file_name], "r") as f:
+        lines = f.read()
+        lines = lines.removesuffix(",")
+        file_list = lines.split(",")
+
+    return file_list
+
+if __name__ == "__main__":
+    import configparser
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+    file = "trans_list"
+    write_temp_list_file(file, config)
+    read_temp_list_file(config)
+
+    # sg.main_get_debug_data()

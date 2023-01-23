@@ -12,6 +12,7 @@ def _menu():
         # ["&File", ["&Open    Ctrl-O", "&Save    Ctrl-S", "---", '&Properties', "&Exit", ]],
         ["&Listening", ["Folder", ["In", "Out", ], "E-mail"], ],
         ["&Help", ["Info", "About"]],
+        ["Reports", ["Transfer", "setup"]]
     ]
     layout = [[sg.Menu(menu_top_def)]]
     return layout
@@ -27,7 +28,11 @@ def _gui_main_layout():
         sg.Column([
             [sg.ProgressBar(100, key="-BAR-", size=(25, 5)), sg.Checkbox("KILL", visible=False, key="-KILL-")],
             [sg.Button("Analyse", key="-ANALYSE-"), sg.Button("Listen", key="-LISTEN-"),
-             sg.Button("Kill", key="-KILL_BUTTON-"), sg.Button("Close", key="-CLOSE-")]
+             sg.Button("Kill", key="-KILL_BUTTON-"), sg.Button("Close", key="-CLOSE-")],
+            [sg.Checkbox("Transfer", key="-ADD_TRANSFER_REPORT_TAB-", visible=False),
+             sg.Text(key="-TIME_TEXT-", visible=False), sg.Text(key="-INIT_TIME_TEXT-", visible=False)],
+            [sg.Text("Plate before sending the report"), sg.Checkbox("E-Mail Report", visible=False, key="-E_MAIL_REPORT-"),
+             sg.Input("", key="-PLATE_NUMBER-", size=3), sg.Text("Counter", key="-PLATE_COUNTER-", visible=True)]
         ])
     ]])
 
