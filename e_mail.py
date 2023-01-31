@@ -33,6 +33,14 @@ class MyEventHandler(FileSystemEventHandler):
         # The list for all the trans files
         temp_file_name = "trans_list"
 
+        # plate list:
+        all_plates = self.window["-TEXT_FIELD-"].get()
+        if all_plates:
+            plate_list = all_plates.split(",")
+        else:
+            plate_list = []
+        current_plate = len(plate_list)
+
         # checks if path is a directory
         if os.path.isfile(event.src_path):
             temp_file = event.src_path
@@ -45,12 +53,6 @@ class MyEventHandler(FileSystemEventHandler):
                 if not self.window["-INIT_TIME_TEXT-"].get():
                     self.window["-INIT_TIME_TEXT-"].update(value=time.time())
 
-                # Counts the numbers of files created.
-                # Is used for sending a report after x-amount. Should fit with the numbers of plate in the run.
-                last_plate = int(self.window["-PLATE_COUNTER-"].get())
-                current_plate = last_plate + 1
-                self.window["-PLATE_COUNTER-"].update(value=current_plate)
-
                 # Writes the file name to a list, to be used for creating a report for all the trans-files
                 write_temp_list_file(temp_file_name, temp_file, self.config)
 
@@ -61,7 +63,8 @@ class MyEventHandler(FileSystemEventHandler):
                     # Set timer to sleep while echo is finishing writing data to the files
                     time.sleep(2)
                     try:
-                        all_data, skipped_wells, skip_well_counter, _, _, _, _ = get_xml_trans_data_skipping_wells(temp_file)
+                        all_data, skipped_wells, skip_well_counter, _, _, _, _, destination_plate = \
+                            get_xml_trans_data_skipping_wells(temp_file)
                     except:
                         counter += 1
                         if counter == 30:
@@ -78,12 +81,26 @@ class MyEventHandler(FileSystemEventHandler):
                             # send an E-mail with information from the trans file
                             mail_setup(msg_subject, data, self.config, e_mail_type)
 
+                        # count destination plates
+                        if destination_plate not in plate_list:
+                            plate_list.append(destination_plate)
+
+                            # Is used for sending a report after x-amount.
+                            # Should fit with the numbers of destination plates in the run.
+                            current_plate = len(plate_list)
+                            self.window["-PLATE_COUNTER-"].update(value=current_plate)
+
+                            # Update the list of plates
+                            all_plates += f",{destination_plate}"
+                            self.window["-TEXT_FIELD-"].update(value=all_plates)
+
                         sending_mail = False
 
                     # Check plate amount. If it reach set amount, it will create a report over all the files and send it.
                     if current_plate == int(self.window["-PLATE_NUMBER-"].get()):
-                        mail_report_sender(temp_file_name, self.window, self.config)
-                        self.window["-E_MAIL_REPORT-"].update(value=False)
+                        self.window["-SEND_E_MAIL-"].update(values=True)
+                        # mail_report_sender(temp_file_name, self.window, self.config)
+                        # self.window["-E_MAIL_REPORT-"].update(value=False)
 
         else:
             print(event.src_path)
@@ -110,24 +127,37 @@ class MyEventHandler(FileSystemEventHandler):
 
 
 def _mail_error(all_data, config):
-    # amount of missing wells
+    """
+    Function to send email notification when errors occur during data transfer.
+    :param all_data: List containing information about the missing wells
+    :type all_data: list
+    :param config: The config handler, with all the default information in the config file.
+    :type config: configparser.ConfigParser
+    :return: A string containing the error message to be sent as an email
+    :rtype: str
+    """
+    # Amount of missing wells
     missing_wells = int(all_data[0])
     trans_string = ""
 
-    # going through ever single missing well, and writes the error msg.
-    for counts in range(missing_wells):
-        transferee = all_data[4 + (counts * 2)]
-        error = all_data[5 + (counts * 2)]
+    # Going through every single missing well and writes the error msg
+    for count in range(missing_wells):
+        # Get the transferee name and error message
+        transferee = all_data[4 + (count * 2)]
+        error = all_data[5 + (count * 2)]
+
+        # Extract error code from the error message
         error_code = error[9:18]
+
+        # Build the error message string for each missing well
         trans_string += f"Transferee: {transferee} - Error: {error}"
 
-        # Looking for known error messages
-        try:
-            config["Echo_error"][error_code]
-        except KeyError:
-            trans_string += " - New error YAY!!!\n"
+        # Check if the error code is present in the config dict
+        error_description = config.get("Echo_error", {}).get(error_code)
+        if error_description:
+            trans_string += f" - {error_description}\n"
         else:
-            trans_string += f" - {config['Echo_error'][error_code]}\n"
+            trans_string += " - New error YAY!!!\n"
 
     # combine all details into one body of text
     body = f"Missing {all_data[0]} Wells \n" \
@@ -139,6 +169,14 @@ def _mail_error(all_data, config):
 
 
 def _mail_final_report(overview_data, config):
+    """
+    Writes the body of the E-mail
+    :param overview_data: An overview of all the data generated.
+    :type overview_data: dict
+    :param config: The config handler, with all the default information in the config file.
+    :type config: configparser.ConfigParser
+    :return:
+    """
 
     body = \
         f"Hey SCore people!\n" \
@@ -155,6 +193,17 @@ def _mail_final_report(overview_data, config):
 
 
 def mail_report_sender(temp_file_name, window, config):
+    """
+    This function sends the final report of the transfer operation.
+
+    :param temp_file_name: The name of the temporary file where all transfer data is stored.
+    :type temp_file_name: str
+    :param window: The GUI window
+    :type window: PySimpleGUI.PySimpleGUI.Window
+    :param config: The config handler, with all the default information in the config file.
+    :type config: configparser.ConfigParser
+    :return:
+    """
     # Reads the temp_file where all the trans file have been written to
 
     file_list = read_temp_list_file(temp_file_name, config)
@@ -170,21 +219,21 @@ def mail_report_sender(temp_file_name, window, config):
         full_path = f"{save_location}/{temp_report_name}.xlsx"
 
     # Create the report file, and saves it.
-    overview_data = skipped_well_controller(file_list, full_path)
+    overview_data = skipped_well_controller(file_list, full_path, config)
 
     # Sleep for 10 seconds, to make sure that the report have been created before trying to send it.
     time.sleep(10)
 
+    # Get elapse time for the transfers completion
     last_e_mail_time = float(window["-TIME_TEXT-"].get())
     first_e_mail_time = float(window["-INIT_TIME_TEXT-"].get())
     elapsed = last_e_mail_time - first_e_mail_time
-    elsapsed_time = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
+    # Change it in to HMS (hour minute seconds) formate and store it
+    elapsed_time = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
+    overview_data["time_for_all_trans"] = elapsed_time
 
     # sends an E-mail, with the report included
     msg_subject = f"Final report for transfer: {date.today()}"
-    overview_data["path"] += full_path
-    overview_data["time_for_all_trans"] = elsapsed_time
-
     e_mail_type = "final_report"
     mail_setup(msg_subject, overview_data, config, e_mail_type)
     print("sent final report")
@@ -199,6 +248,10 @@ def mail_setup(msg_subject, all_data, config, e_mail_type):
     :type all_data: dict
     :param config: The configparser.
     :type config: configparser.ConfigParser
+    :param e_mail_type: What kind of E-mail to send.
+        "error" - sends an E-mail with all the fail transfers from the echo
+        "final_report" - sends an E-mail with an overview of all the transfers, and a report for the complete transfer
+    :type e_mail_type: str
     :return:
     """
 
@@ -230,9 +283,7 @@ def mail_setup(msg_subject, all_data, config, e_mail_type):
         subtype = filename.split(".")[-1]
         filename = filename.split("/")[-1]
 
-
     # Setting up the e-mail
-
     msg["Subject"] = f"{msg_subject}"
     msg["from"] = f"{equipment_name} <{sender}>"
     msg["To"] = ", ".join(receiver)
@@ -278,7 +329,6 @@ def listening_controller(config, run, window):
         observer.stop()
         observer.join()
         print("done")
-
 
 
 if __name__ == "__main__":

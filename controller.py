@@ -1,11 +1,11 @@
 import PySimpleGUI as sg
-import configparser
+
 import threading
 from os import path
 import time
 from datetime import date
 
-from gui import main_layout, popup_controller
+from gui import main_layout, popup_email_list_controller, popup_settings_controller, popup_worklist_controller
 from reports import skipped_well_controller
 from helper_func import config_writer, config_header_to_list, clear_file
 from e_mail import listening_controller, mail_report_sender
@@ -29,6 +29,7 @@ def main(config):
         if event == sg.WIN_CLOSED or event == "-CLOSE-":
             break
 
+
         if event == "-ANALYSE-":
             data_location = sg.popup_get_folder("Where is the data located?")
 
@@ -48,13 +49,14 @@ def main(config):
                 temp_counter += 1
                 full_path = f"{save_location}/{temp_file_name}.xlsx"
 
-            status = skipped_well_controller(data_location, full_path)
+            status = skipped_well_controller(data_location, full_path, config)
             sg.popup(status)
 
         if event == "-LISTEN-":
             window["-KILL-"].update(value=False)
             window["-PLATE_COUNTER-"].update(value=0)
             window["-E_MAIL_REPORT-"].update(value=True)
+            window["-TEXT_FIELD-"].update(value="")
 
             if not window["-PLATE_NUMBER-"].get():
                 window["-PLATE_NUMBER-"].update(value=0)
@@ -82,6 +84,9 @@ def main(config):
         if event == "-KILL_BUTTON-":
             window["-KILL-"].update(value=True)
 
+        if event == "-SHOW_PLATE_LIST-":
+            window["-TEXT_FIELD-"].update(visible=values["-SHOW_PLATE_LIST-"])
+
         if event == "In":
             config_heading = "Folder"
             sub_heading = "in"
@@ -104,7 +109,7 @@ def main(config):
 
             headings = ["Name", "E-mail"]
 
-            popup_controller(table_data, config, headings)
+            popup_email_list_controller(table_data, config, headings)
 
         if event == "Info":
             with open("README.txt") as file:
@@ -114,6 +119,17 @@ def main(config):
 
         if event == "About":
             sg.Popup("Echo Data Listening and analyses. Made By Charlie")
+
+        if event == "Transfer":
+            sg.Popup("Not working... and not sure what it should do :D ")
+
+        if event == "Setup":
+            sg.Popup("Not working atm")
+            # popup_settings_controller()
+
+        if event == "Create Worklist":
+            popup_worklist_controller(config)
+
 
 
 def progressbar(config, run, window):
@@ -125,32 +141,40 @@ def progressbar(config, run, window):
     :type window: PySimpleGUI.PySimpleGUI.Window
     :return:
     """
-    min = 0
-    max = 100
+    min_timer = 0
+    max_timer = 100
     counter = 0
 
-    # Timer for when too sent a report. if there are no files created for the periode of time, a report will be sent.
-    time_limit = int(config["Time"]["timer_set"])
+    # Timer for when too sent a report. if there are no files created for the period of time, a report will be sent.
+    # set one for runs where there is not set a plate counter, or if the platform fails.
+    # set one for if plate counter is used. To avoid sending multiple report files, one for each source plate
+    time_limit_no_plate_counter = int(config["Time"]["time_limit_no_plate_counter"])
+    time_limit_plate_counter = int(config["Time"]["time_limit_plate_counter"])
+
+    temp_file_name = "trans_list"
 
     while run:
-        if counter == min:
+        current_time = time.time()
+        if counter == min_timer:
             runner = "pos"
-        elif counter == max:
+        elif counter == max_timer:
             runner = "neg"
             # This is a setup to send a E-mail with a full report over all failed wells.
-            # It is set up for time. #ToDo make it work with number
+            # It is set up for time.
             if window["-E_MAIL_REPORT-"].get():
-                current_time = time.time()
                 try:
                     last_e_mail_time = float(window["-TIME_TEXT-"].get())
                 except ValueError:
                     last_e_mail_time = time.time()
 
-                if current_time - last_e_mail_time > time_limit and window["-E_MAIL_REPORT-"].get():
-                    temp_file_name = "trans_list"
+                if current_time - last_e_mail_time > time_limit_no_plate_counter and window["-E_MAIL_REPORT-"].get():
                     mail_report_sender(temp_file_name, window, config)
                     window["-E_MAIL_REPORT-"].update(value=False)
 
+            if window["-SEND_E_MAIL-"].get():
+                if current_time - last_e_mail_time > time_limit_plate_counter and window["-E_MAIL_REPORT-"].get():
+                    mail_report_sender(temp_file_name, window, config)
+                    window["-E_MAIL_REPORT-"].update(value=False)
 
         if runner == "pos":
             counter += 10
@@ -164,7 +188,10 @@ def progressbar(config, run, window):
             run = False
 
 
+
+
 if __name__ == "__main__":
+    import configparser
     config = configparser.ConfigParser()
     config.read("config.ini")
     main(config)

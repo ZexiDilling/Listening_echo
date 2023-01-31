@@ -1,11 +1,14 @@
-from openpyxl import load_workbook
+from openpyxl import load_workbook, Workbook
+from openpyxl.styles import PatternFill, Font, Alignment
 import csv
 import xml.etree.ElementTree as ET
 import re
 import os
 
+from helper_func import folder_to_files
 
-def well_compound_list(folder):
+
+def well_compound_list(path):
     """
     Takes excel file with wells in clm 1 and compound name in clm 2
     :param folder: a folder with files
@@ -13,7 +16,10 @@ def well_compound_list(folder):
     :return: compound_data - Data for what compound is in each well, based on excel files data.
     :rtype: dict
     """
-    file_list = folder_to_files(folder)
+    if os.path.isdir(path):
+        file_list = folder_to_files(path)
+    else:
+        file_list = [path]
 
     compound_data = {}
     for files in file_list:
@@ -186,12 +192,20 @@ def get_survey_csv_data(path):
     :rtype: dict
     """
     survey_data = {}
-    file_list = folder_to_files(path)
+    if os.path.isdir(path):
+        file_list = folder_to_files(path)
+    else:
+        file_list = [path]
+
     for file in file_list:
+
         plate_name = file.split("\\")[-1].split(".")[0]
         plate_name = plate_name.replace("-", "_")
         if file.endswith(".csv"):
-            barcode = "_".join(plate_name.split("_")[1:])
+            if plate_name.split("_")[0] != "P23":
+                barcode = "_".join(plate_name.split("_")[1:])
+            else:
+                barcode = "_".join(plate_name.split("_"))
 
             try:
                 survey_data[barcode]
@@ -255,7 +269,6 @@ def get_xml_trans_data_skipping_wells(path):
     # Data for completed plates:
     zero_error_trans_plate = []
     error_trans_plate = []
-    completed_plates = []
 
     # checks if path is a directory
 
@@ -269,7 +282,7 @@ def get_xml_trans_data_skipping_wells(path):
     for files in file_list:
 
         if files.split("\\")[-1].startswith("Transfer"):
-            print(files)
+            # print(files)
             # path = self.file_names(self.main_folder)
             doc = ET.parse(files)
             root = doc.getroot()
@@ -339,11 +352,14 @@ def get_xml_trans_data_skipping_wells(path):
                         temp_trans.append(n)
                         temp_trans.append(float(vt))
                         temp_trans.append(dn)
+                        # Gets only the error code from reason
+                        reason = reason.split(":")[0]
                         try:
                             skipped_wells[temp_barcode][n]["counter"] += 1
                             skipped_wells[temp_barcode][n]["vol"] += float(vt)
+                            skipped_wells[temp_barcode][n]["reason"].append(reason)
                         except KeyError:
-                            skipped_wells[temp_barcode][n] = {"counter": 1, "vol": float(vt)}
+                            skipped_wells[temp_barcode][n] = {"counter": 1, "vol": float(vt), "reason": [reason]}
 
                         working_list[temp_dest_barcode][temp_barcode].append(temp_trans)
                 else:
@@ -367,7 +383,6 @@ def get_xml_trans_data_skipping_wells(path):
     trans_plate_counter = list(dict.fromkeys(trans_plate_counter))
     # print(skip_well_counter)
     plates_to_remove = []
-    print(zero_error_trans_plate)
     if zero_error_trans_plate:
         for plates in zero_error_trans_plate:
             if plates in error_trans_plate:
@@ -377,7 +392,7 @@ def get_xml_trans_data_skipping_wells(path):
             zero_error_trans_plate.remove(plates)
 
     return all_data, skipped_wells, skip_well_counter, working_list, trans_plate_counter, all_trans_counter, \
-           zero_error_trans_plate
+           zero_error_trans_plate, temp_d_barcode
 
 
 def get_xml_trans_data_printing_wells(path):
@@ -434,19 +449,78 @@ def get_xml_trans_data_printing_wells(path):
     return all_trans_data
 
 
-
-def folder_to_files(folder_path):
+def get_plate_lay_from_excel_raw(file):
     """
-    Gets all files in a folder in a list
-    :param folder_path: the path to the folder
-    :type folder_path: str
-    :return: A list of all the files in the folder
-    :rtype: list
+    Takes excel file, with compound name in col_x, vol in col_y, wells in col_z
+    :param file: The excel file
+    :type file: str
+    :return: dict over compound in wells:
+    :rtype: dict
     """
-    file_list = []
 
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            file_list.append(str(os.path.join(root, file)))
+    wb = load_workbook(file)
+    ws = wb.active
+    compound = {}
 
-    return file_list
+    for line_index, line in enumerate(ws):
+        if line_index != 0:
+            for cell_index, cell in enumerate(line):
+                if cell_index == 0:
+                    drug = cell.value
+
+                if drug:
+                    try:
+                        compound[drug]
+                    except KeyError:
+                        compound[drug] = []
+                    if cell_index == 3:
+                        well_values = cell.value
+                        temp_well_list = well_values.split(",")
+                        for wells in temp_well_list:
+                            try:
+                                start_well, end_well = wells.split("-")
+                            except ValueError:
+                                compound[drug].append(wells)
+                            else:
+                                letter, start_num, _ = re.split('(\d+)', start_well.strip())
+                                end_num = re.split('(\d+)', end_well.strip())[1]
+                                for i in range(int(start_num), int(end_num) + 1):
+                                    well = f"{letter}{i}"
+                                    compound[drug].append(well)
+
+    return compound
+
+
+def convert_compound_data_to_plate_layout(compound_data, full_path):
+    """
+    A dict of compound, and wells
+    :param compound_data:
+    :return:
+    """
+    wb = Workbook()
+    ws = wb.active
+    row = 1
+    col = 1
+
+    # Headling
+    ws.cell(row=row, column=col, value="source_plate").font = Font(bold=True)
+    ws.cell(row=row, column=col + 1, value="compound").font = Font(bold=True)
+
+    row += 1
+
+    for compound in compound_data:
+        for well in compound_data[compound]:
+            ws.cell(row=row, column=col, value=well)
+            ws.cell(row=row, column=col + 1, value=compound)
+            row += 1
+
+    wb.save(full_path)
+
+if __name__ == "__main__":
+    location = "C:/Users/phch/Desktop/more_data_files"
+    file = "2022-12-09-Compound_200sets_with well position.xlsx"
+    full_path = f"{location}/{file}"
+    file_layout = "ldv_200.xlsx"
+    full_path_layout = f"{location}/{file_layout}"
+    compound = get_plate_lay_from_excel_raw(full_path)
+    convert_compound_data_to_plate_layout(compound, full_path_layout)

@@ -6,30 +6,21 @@ from openpyxl import Workbook
 
 
 def tester(config, error):
-    test_list = []
-    if test_list:
-        print("Fuck")
-    current_time = time.time()
-    print(current_time)
-    # time.sleep(2)
-    time_2_hrs = time.time()
+    set_amount = 10
+    starting_set = 0
 
-    elapsed = time_2_hrs-current_time
+    specific_transfers = {"13-plate-C": {"PP": False, "LDV": True}, "13-plate-D": {"PP": False, "LDV": True}, "13-plate-A": {"PP": True, "LDV": True}}
 
-    check = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
-    print(check)
+    if specific_transfers:
+        plate_range = specific_transfers
 
+    else:
+        plate_range = range(set_amount + 1 - starting_set)
 
-    overview_data = {"plate_amount": 0,
-                     "amount_complete_plates": 0,
-                     "amount_failed_plates": 0,       #DONE
-                     "failed_wells": 0,                   #DONE
-                     "failed_trans": 0,                   #DONE
-                     "amount_source_plates": 0,           #DONE
-                     "time_for_all_trans": 0,                 #DONE
-                     "path": ""}                              #DONE
-    test = "hej"
-    overview_data["path"] = test
+    for test in plate_range:
+        if not plate_range[test]["PP"]:
+            continue
+        print(test)
 
 if __name__ == "__main__":
     config = configparser.ConfigParser()
