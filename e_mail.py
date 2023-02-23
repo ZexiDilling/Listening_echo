@@ -36,7 +36,7 @@ class MyEventHandler(FileSystemEventHandler):
         # plate list:
         all_plates = self.window["-TEXT_FIELD-"].get()
         if all_plates:
-            plate_list = all_plates.split(",")
+            plate_list = all_plates.split(",")[1:]
         else:
             plate_list = []
         current_plate = len(plate_list)
@@ -70,7 +70,7 @@ class MyEventHandler(FileSystemEventHandler):
                         if counter == 30:
                             sending_mail = False
                     else:
-                        # Check if there are any well being skipped in the file
+                        # Check if there are any well, that is being skipped in the file
                         if skipped_wells:
 
                             # set-up the E-mail
@@ -81,10 +81,13 @@ class MyEventHandler(FileSystemEventHandler):
                             # send an E-mail with information from the trans file
                             mail_setup(msg_subject, data, self.config, e_mail_type)
 
+                            # counts number of plates with errors and updates the value in the GUI
+                            plate_errors = int(self.window["-ERROR_PLATE_COUNTER-"].get()) + 1
+                            self.window["-ERROR_PLATE_COUNTER-"].update(value=plate_errors)
+
                         # count destination plates
                         if destination_plate not in plate_list:
                             plate_list.append(destination_plate)
-
                             # Is used for sending a report after x-amount.
                             # Should fit with the numbers of destination plates in the run.
                             current_plate = len(plate_list)
@@ -96,9 +99,10 @@ class MyEventHandler(FileSystemEventHandler):
 
                         sending_mail = False
 
-                    # Check plate amount. If it reach set amount, it will create a report over all the files and send it.
+                    # Check plate amount. If it reach set amount,
+                    # it will create a report over all the files and send it.
                     if current_plate == int(self.window["-PLATE_NUMBER-"].get()):
-                        self.window["-SEND_E_MAIL-"].update(values=True)
+                        self.window["-SEND_E_MAIL-"].update(value=True)
                         # mail_report_sender(temp_file_name, self.window, self.config)
                         # self.window["-E_MAIL_REPORT-"].update(value=False)
 
@@ -153,11 +157,12 @@ def _mail_error(all_data, config):
         trans_string += f"Transferee: {transferee} - Error: {error}"
 
         # Check if the error code is present in the config dict
-        error_description = config.get("Echo_error", {}).get(error_code)
-        if error_description:
-            trans_string += f" - {error_description}\n"
-        else:
+        try:
+            config["Echo_error"][error_code]
+        except KeyError:
             trans_string += " - New error YAY!!!\n"
+        else:
+            trans_string += f" - {config['Echo_error'][error_code]}\n"
 
     # combine all details into one body of text
     body = f"Missing {all_data[0]} Wells \n" \
@@ -297,6 +302,7 @@ def mail_setup(msg_subject, all_data, config, e_mail_type):
     server.send_message(msg)
     # server.sendmail(msg["from"], msg["to"], msg.as_string())
     server.quit()
+    print("Plate error sent")
 
 
 def listening_controller(config, run, window):

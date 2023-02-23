@@ -59,7 +59,8 @@ def _write_to_excel_plate_transferees(wb, data, title):    # TODO description
     ws.cell(row=1, column=2, value="counter").font = Font(bold=True)
 
     # Write the data, barcodes for destination plates and the number of transferees
-    for row, (plate, counts) in enumerate(data, 2):
+    for row, plate_counts in enumerate(data, 2):
+        plate, counts = plate_counts.split(",")
         ws.cell(row=row, column=1, value=plate)
         ws.cell(row=row, column=2, value=counts)
 
@@ -671,8 +672,8 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amoun
     headlines = ["source_plates", "source_well", "volume", "destination_well", "destination_plates", "compound"]
 
     for temp_col, headline in enumerate(headlines):
-        ws1.cell(row=row, column=temp_col, value=headline).font = Font(bold=True)    # headers_LDV:
-        ws2.cell(row=row, column=temp_col, value=headline).font = Font(bold=True)    # headers_PP:
+        ws1.cell(row=row, column=col + temp_col, value=headline).font = Font(bold=True)    # headers_LDV:
+        ws2.cell(row=row, column=col + temp_col, value=headline).font = Font(bold=True)    # headers_PP:
 
 
     if not starting_set:
@@ -866,7 +867,8 @@ def new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dea
     survey_layout = _compound_to_survey(plate_layout, survey_data)
     print("got survey layout")
     _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amount, save_file, starting_set, specific_transfers)
-    window["-WORKLIST_KILL-"].update(value=True)
+    if window:
+        window["-WORKLIST_KILL-"].update(value=True)
     print("done")
 
 
@@ -888,7 +890,7 @@ if __name__ == "__main__":
     # plate_layout_folder = "D:/plate_layout"
     # save_location = "C:/Users/phch/Desktop/more_data_files/"
     # file_trans = "D:/all_trans.xlsx"
-    # set_amount = 60
+    # set_amount = 50
     # starting_set = 17
     # dead_vol_ul = {"LDV": 3, "PP": 15}
     # save_file_name = "last_few_plates"
@@ -901,21 +903,21 @@ if __name__ == "__main__":
     #     specific_transfers[plate_names] = {"LDV": True, "PP": False}
     #
     # print(specific_transfers)
-    #
-    #
+    # #
+    # #
     # new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location, save_file_name, specific_transfers=specific_transfers)
 
-    # save_file_name = "200_setes"
-    # survey_folder = "C:/Users/phch/Desktop/more_data_files/full_plates"
-    # plate_layout_folder = "C:/Users/phch/Desktop/more_data_files/simulated_plate_layout"
-    # file_trans = "C:/Users/phch/Desktop/more_data_files/all_trans.xlsx"
-    # set_amount = 200
-    # dead_vol_ul = {"LDV": 2.5, "PP": 15}
-    # save_location = "C:/Users/phch/Desktop/more_data_files"
-    #
-    #
-    #
-    # new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location, save_file_name)
+    save_file_name = "200_setes_230223"
+    survey_folder = "C:/Users/phch/Desktop/more_data_files/full_plates"
+    plate_layout_folder = "C:/Users/phch/Desktop/more_data_files/simulated_plate_layout"
+    file_trans = "C:/Users/phch/Desktop/more_data_files/all_trans.xlsx"
+    set_amount = 200
+    dead_vol_ul = {"LDV": 2.5, "PP": 15}
+    save_location = "C:/Users/phch/Desktop/more_data_files"
+
+
+
+    new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location, save_file_name)
 
 
     # trans_report_controller(trans_data_folder, plate_layout_folder, all_trans_file, data_location, file_name, save_location)

@@ -29,7 +29,6 @@ def main(config):
         if event == sg.WIN_CLOSED or event == "-CLOSE-":
             break
 
-
         if event == "-ANALYSE-":
             data_location = sg.popup_get_folder("Where is the data located?")
 
@@ -55,6 +54,7 @@ def main(config):
         if event == "-LISTEN-":
             window["-KILL-"].update(value=False)
             window["-PLATE_COUNTER-"].update(value=0)
+            window["-ERROR_PLATE_COUNTER-"].update(value=0)
             window["-E_MAIL_REPORT-"].update(value=True)
             window["-TEXT_FIELD-"].update(value="")
 
@@ -124,8 +124,7 @@ def main(config):
             sg.Popup("Not working... and not sure what it should do :D ")
 
         if event == "Setup":
-            sg.Popup("Not working atm")
-            # popup_settings_controller()
+            popup_settings_controller(config)
 
         if event == "Create Worklist":
             popup_worklist_controller(config)
@@ -148,8 +147,8 @@ def progressbar(config, run, window):
     # Timer for when too sent a report. if there are no files created for the period of time, a report will be sent.
     # set one for runs where there is not set a plate counter, or if the platform fails.
     # set one for if plate counter is used. To avoid sending multiple report files, one for each source plate
-    time_limit_no_plate_counter = int(config["Time"]["time_limit_no_plate_counter"])
-    time_limit_plate_counter = int(config["Time"]["time_limit_plate_counter"])
+    time_limit_no_plate_counter = float(config["Time"]["time_limit_no_plate_counter"])
+    time_limit_plate_counter = float(config["Time"]["time_limit_plate_counter"])
 
     temp_file_name = "trans_list"
 

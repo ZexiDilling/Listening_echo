@@ -1,6 +1,8 @@
 import PySimpleGUI as sg
+import configparser
 from threading import Thread
 import time
+
 
 from helper_func import config_writer
 from reports import new_worklist
@@ -41,10 +43,11 @@ def _gui_main_layout():
                        tooltip="stops the program that listen to the folder for files"),
              sg.Button("Close", key="-CLOSE-", expand_x=True,
                        tooltip="Closes the whole program")],
-            [sg.Text("Destination plate amount:"),
+            [sg.Text("Plates:"),
              sg.Input("", key="-PLATE_NUMBER-", size=3,
                       tooltip=tool_tip_plate_number),
-             sg.Text("Counter", key="-PLATE_COUNTER-", visible=True),
+             sg.Text("Counter", key="-PLATE_COUNTER-", visible=True, tooltip="Plate analysed"),
+             sg.Text("Error", key="-ERROR_PLATE_COUNTER-", visible=True, tooltip="Plates failed"),
              sg.Checkbox("Show Plate", key="-SHOW_PLATE_LIST-", enable_events=True,
                          tooltip="Will show a list of all the plates that have been transferred so far")],
             [sg.Checkbox("Transfer", key="-ADD_TRANSFER_REPORT_TAB-", visible=False),
@@ -250,10 +253,6 @@ def popup_worklist_controller(config):
             t2.start()
 
 
-def popup_settings_controller():
-    pass
-
-
 def worklist_progressbar(run, window):
     # Define minimum and maximum timer values
     min_timer = 0
@@ -286,3 +285,65 @@ def worklist_progressbar(run, window):
         # Check if the worklist kill switch is activated
         if window["-WORKLIST_KILL-"].get():
             run = False
+
+
+def _gui_popup_settings(config):
+
+    config.read("config.ini")
+
+    col_1 = sg.Column([
+        [sg.Text("Time limit for no plate counter:"),
+         sg.Input(default_text=config["Time"]["time_limit_no_plate_counter"],
+                  key="-SETTINGS_TIME_LIMIT_NO_PLATE_COUNTER-", size=5)],
+        [sg.Text("Time limit for plate counter:"),
+         sg.Input(default_text=config["Time"]["time_limit_plate_counter"],
+                  key="-SETTINGS_TIME_LIMIT_PLATE_COUNTER-", size=5)],
+        [sg.Text("Dead vol LDV:", size=5),
+         sg.Input(default_text=config["Dead_vol"]["ldv"], key="-SETTINGS_DEAD_VOL_LDV-", size=5),
+         sg.Text("MAX vol LDV:", size=5), sg.Input(default_text=config["Max_vol"]["pp"],
+                                                   key="-SETTINGS_MAX_VOL_LDV-", size=5)],
+        [sg.Text("Dead vol PP:", size=5),
+         sg.Input(default_text=config["Dead_vol"]["pp"], key="-SETTINGS_DEAD_VOL_PP-", size=5),
+         sg.Text("MAX vol LDV:", size=5), sg.Input(default_text=config["Max_vol"]["ldv"],
+                                                   key="-SETTINGS_MAX_VOL_PP-", size=5)],
+        [sg.Button("Echo Error list", key="-SETTINGS_ECHO_ERROR_LIST_BUTTON-")],
+        [sg.Button("Save", expand_x=True, key="-SETTINGS_SAVE-"),
+         sg.Button("Close", expand_x=True, key="-SETTINGS_CLOSE-")]
+    ])
+
+    layout = [[sg.Frame("Settings", [[col_1]])]]
+
+    return sg.Window("Table", layout, finalize=True, resizable=True)
+
+
+def popup_settings_controller(config):
+    window = _gui_popup_settings(config)
+
+    while True:
+        event, values = window.read()
+        if event == "-SETTINGS_CLOSE-":
+            break
+        elif event == "-SETTINGS_SAVE-":
+            try:
+                time_limit_no_plate_counter = float(values["-SETTINGS_TIME_LIMIT_NO_PLATE_COUNTER-"])
+                time_limit_plate_counter = float(values["-SETTINGS_TIME_LIMIT_PLATE_COUNTER-"])
+                dead_vol_ldv = float(values["-SETTINGS_DEAD_VOL_LDV-"])
+                dead_vol_pp = float(values["-SETTINGS_DEAD_VOL_PP-"])
+                max_vol_ldv = float(values["-SETTINGS_MAX_VOL_LDV-"])
+                max_vol_pp = float(values["-SETTINGS_MAX_VOL_PP-"])
+            except ValueError:
+                sg.popup("Please enter a valid float number")
+                continue
+
+            config.set("Time", "time_limit_no_plate_counter", str(time_limit_no_plate_counter))
+            config.set("Time", "time_limit_plate_counter", str(time_limit_plate_counter))
+            config.set("Dead_vol", "ldv", str(dead_vol_ldv))
+            config.set("Dead_vol", "pp", str(dead_vol_pp))
+            config.set("Max_vol", "ldv", str(max_vol_ldv))
+            config.set("Max_vol", "pp", str(max_vol_pp))
+
+            with open("config.ini", "w") as configfile:
+                config.write(configfile)
+            break
+
+    window.close()
