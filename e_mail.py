@@ -6,7 +6,7 @@ import smtplib
 from email.message import EmailMessage
 import os
 from os import path
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from get_data import get_xml_trans_data_skipping_wells
 from helper_func import write_temp_list_file, read_temp_list_file
@@ -191,11 +191,47 @@ def _mail_final_report(overview_data, config):
         f"{overview_data['amount_failed_plates']} plates have {overview_data['failed_trans']} failed transferes\n" \
         f"There are {overview_data['failed_wells']} failed wells on {overview_data['amount_source_plates']} " \
         f"source plates \n" \
-        f"Time taken from first transfer to last is: {overview_data['time_for_all_trans']}.\n\n" \
-        f"The best wishes\n" \
+        f"Time taken from first transfer to last is: {overview_data['time_for_all_trans']}.\n\n\n" \
+        f"The best wishes!\n" \
         f"The Echo :D"
 
     return body
+
+
+def _mail_estimated_time_body(all_data):
+    print(all_data)
+    body = \
+        f"Hey SCore people!\n" \
+        f"This is the estimated finish time: {all_data['estimated_time']}.\n" \
+        f"The total time for the full run will be: {all_data['total_time']}.\n" \
+        f"With a time per plate: {all_data['time_per_plate']}.\n" \
+        f"Based on {all_data['plates_done']}-plates out of a total of {all_data['total_plates']}-plates.\n\n\n" \
+        f"The best wishes!\n" \
+        f"The Echo :D"
+
+    return body
+
+
+def mail_estimated_time(config, total_plates, current_plate_number, elapsed_time):
+
+    difference = total_plates / current_plate_number
+    total_time = difference * elapsed_time
+    missing_time = total_time - elapsed_time
+    estimated_finish_time = datetime.now() + timedelta(seconds=missing_time)
+
+    time_per_plate_seconds = elapsed_time / current_plate_number
+    time_per_plate = time.strftime("%Hh%Mm%Ss", time.gmtime(time_per_plate_seconds))
+
+    all_data = {"estimated_time": estimated_finish_time,
+                "total_time": total_time,
+                "plates_done": current_plate_number,
+                "total_plates": total_plates,
+                "time_per_plate": time_per_plate}
+
+    msg_subject = f"Estimated finish_time: {estimated_finish_time}"
+    e_mail_type = "estimated_time"
+    mail_setup(msg_subject, all_data, config, e_mail_type)
+    print("estimated_time sent")
 
 
 def mail_report_sender(temp_file_name, window, config, overview_data=None):
@@ -212,21 +248,24 @@ def mail_report_sender(temp_file_name, window, config, overview_data=None):
     """
     # Reads the temp_file where all the trans file have been written to
     if not temp_file_name.startswith("Report"):
+
         file_list = read_temp_list_file(temp_file_name, config)
 
-        # Setup the report
-        report_name = f"Report_{date.today()}"
-        save_location = config["Folder"]["out"]
-        temp_counter = 2
-        full_path = f"{save_location}/{report_name}.xlsx"
-        while path.exists(full_path):
-            temp_report_name = f"{report_name}_{temp_counter}"
-            temp_counter += 1
-            full_path = f"{save_location}/{temp_report_name}.xlsx"
+        if file_list:
+            # Setup the report
+            report_name = f"Report_{date.today()}"
+            save_location = config["Folder"]["out"]
+            temp_counter = 2
+            full_path = f"{save_location}/{report_name}.xlsx"
+            while path.exists(full_path):
+                temp_report_name = f"{report_name}_{temp_counter}"
+                temp_counter += 1
+                full_path = f"{save_location}/{temp_report_name}.xlsx"
 
 
-        # Create the report file, and saves it.
-        overview_data = skipped_well_controller(file_list, full_path, config)
+            # Create the report file, and saves it.
+            overview_data = skipped_well_controller(file_list, full_path, config)
+
 
         # Sleep for 10 seconds, to make sure that the report have been created before trying to send it.
         time.sleep(5)
@@ -238,6 +277,7 @@ def mail_report_sender(temp_file_name, window, config, overview_data=None):
         # Change it in to HMS (hour minute seconds) formate and store it
         elapsed_time = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
         overview_data["time_for_all_trans"] = elapsed_time
+
 
     # sends an E-mail, with the report included
     msg_subject = f"Final report for transfer: {date.today()}"
@@ -289,6 +329,8 @@ def mail_setup(msg_subject, all_data, config, e_mail_type):
             file_data = f.read()
         subtype = filename.split(".")[-1]
         filename = filename.split("/")[-1]
+    elif e_mail_type == "estimated_time":
+        body = _mail_estimated_time_body(all_data)
 
     # Setting up the e-mail
     msg["Subject"] = f"{msg_subject}"

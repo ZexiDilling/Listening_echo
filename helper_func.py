@@ -99,17 +99,19 @@ def read_temp_list_file(temp_file_name, config):
     """
     # Get the path to the temporary file, specified in the "Temp_files" section of the config
     trans_list_file = config["Temp_files"][temp_file_name]
+    if os.path.isfile(trans_list_file):
+        # Open the file in read mode
+        with open(trans_list_file, "r") as f:
+            # Read the data from the file
+            lines = f.read()
+            # Remove the trailing comma
+            lines = lines.rstrip(",")
+            # Split the data into a list of strings, separated by commas
+            file_list = lines.split(",")
 
-    # Open the file in read mode
-    with open(trans_list_file, "r") as f:
-        # Read the data from the file
-        lines = f.read()
-        # Remove the trailing comma
-        lines = lines.rstrip(",")
-        # Split the data into a list of strings, separated by commas
-        file_list = lines.split(",")
-
-    return file_list
+        return file_list
+    else:
+        return None
 
 def folder_to_files(folder_path):
     """

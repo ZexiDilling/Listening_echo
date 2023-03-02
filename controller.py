@@ -8,7 +8,7 @@ from datetime import date
 from gui import main_layout, popup_email_list_controller, popup_settings_controller, popup_worklist_controller
 from reports import skipped_well_controller
 from helper_func import config_writer, config_header_to_list, clear_file
-from e_mail import listening_controller, mail_report_sender
+from e_mail import listening_controller, mail_report_sender, mail_estimated_time
 
 
 def main(config):
@@ -164,6 +164,14 @@ def progressbar(config, run, window):
     time_limit_plate_counter = float(config["Time"]["time_limit_plate_counter"])
 
     temp_file_name = "trans_list"
+    total_plates = int(window["-PLATE_NUMBER-"].get())
+    procent_splitter = [
+        round(total_plates / 100 * 10),
+        round(total_plates / 100 * 25),
+        round(total_plates / 100 * 50),
+        round(total_plates / 100 * 75)
+    ]
+    time_estimates_send = []
 
     while run:
         current_time = time.time()
@@ -187,6 +195,15 @@ def progressbar(config, run, window):
                 if current_time - last_e_mail_time > time_limit_plate_counter and window["-E_MAIL_REPORT-"].get():
                     mail_report_sender(temp_file_name, window, config)
                     window["-E_MAIL_REPORT-"].update(value=False)
+
+            if total_plates >= int(config["Plate_setup"]["limit"]):
+                current_plate = int(window["-PLATE_COUNTER-"].get())
+
+                if current_plate in procent_splitter and not time_estimates_send:
+                    time_estimates_send.append(current_plate)
+                    elapsed_time = current_time - float(window["-INIT_TIME_TEXT-"].get())
+                    mail_estimated_time(config, total_plates, current_plate, elapsed_time)
+
 
         if runner == "pos":
             counter += 10

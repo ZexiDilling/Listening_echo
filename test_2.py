@@ -3,24 +3,20 @@ import time
 import smtplib
 from email.message import EmailMessage
 from openpyxl import Workbook
+from datetime import datetime, timedelta
 
 
 def tester(config, error):
-    set_amount = 10
-    starting_set = 0
 
-    specific_transfers = {"13-plate-C": {"PP": False, "LDV": True}, "13-plate-D": {"PP": False, "LDV": True}, "13-plate-A": {"PP": True, "LDV": True}}
+    current_plate = 4
+    procent_splitter = [5, 12, 25, 38]
+    time_estimates_send = [5]
+    current_plate = 5
 
-    if specific_transfers:
-        plate_range = specific_transfers
+    if current_plate in time_estimates_send and not time_estimates_send:
 
-    else:
-        plate_range = range(set_amount + 1 - starting_set)
-
-    for test in plate_range:
-        if not plate_range[test]["PP"]:
-            continue
-        print(test)
+        print("test")
+    print(time_estimates_send)
 
 if __name__ == "__main__":
     config = configparser.ConfigParser()
