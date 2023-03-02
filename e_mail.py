@@ -46,6 +46,7 @@ class MyEventHandler(FileSystemEventHandler):
             temp_file = event.src_path
 
             if "transfer" in temp_file.casefold():
+                self.window["-E_MAIL_REPORT-"].update(value=True)
                 # Gets time-code for when file was created.
                 # Is used to send a full report after x-amount of time
                 self.window["-TIME_TEXT-"].update(value=time.time())
@@ -197,7 +198,7 @@ def _mail_final_report(overview_data, config):
     return body
 
 
-def mail_report_sender(temp_file_name, window, config):
+def mail_report_sender(temp_file_name, window, config, overview_data=None):
     """
     This function sends the final report of the transfer operation.
 
@@ -210,32 +211,33 @@ def mail_report_sender(temp_file_name, window, config):
     :return:
     """
     # Reads the temp_file where all the trans file have been written to
+    if not temp_file_name.startswith("Report"):
+        file_list = read_temp_list_file(temp_file_name, config)
 
-    file_list = read_temp_list_file(temp_file_name, config)
+        # Setup the report
+        report_name = f"Report_{date.today()}"
+        save_location = config["Folder"]["out"]
+        temp_counter = 2
+        full_path = f"{save_location}/{report_name}.xlsx"
+        while path.exists(full_path):
+            temp_report_name = f"{report_name}_{temp_counter}"
+            temp_counter += 1
+            full_path = f"{save_location}/{temp_report_name}.xlsx"
 
-    # Setup the report
-    report_name = f"Report_{date.today()}"
-    save_location = config["Folder"]["out"]
-    temp_counter = 2
-    full_path = f"{save_location}/{report_name}.xlsx"
-    while path.exists(full_path):
-        temp_report_name = f"{report_name}_{temp_counter}"
-        temp_counter += 1
-        full_path = f"{save_location}/{temp_report_name}.xlsx"
 
-    # Create the report file, and saves it.
-    overview_data = skipped_well_controller(file_list, full_path, config)
+        # Create the report file, and saves it.
+        overview_data = skipped_well_controller(file_list, full_path, config)
 
-    # Sleep for 10 seconds, to make sure that the report have been created before trying to send it.
-    time.sleep(10)
+        # Sleep for 10 seconds, to make sure that the report have been created before trying to send it.
+        time.sleep(5)
 
-    # Get elapse time for the transfers completion
-    last_e_mail_time = float(window["-TIME_TEXT-"].get())
-    first_e_mail_time = float(window["-INIT_TIME_TEXT-"].get())
-    elapsed = last_e_mail_time - first_e_mail_time
-    # Change it in to HMS (hour minute seconds) formate and store it
-    elapsed_time = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
-    overview_data["time_for_all_trans"] = elapsed_time
+        # Get elapse time for the transfers completion
+        last_e_mail_time = float(window["-TIME_TEXT-"].get())
+        first_e_mail_time = float(window["-INIT_TIME_TEXT-"].get())
+        elapsed = last_e_mail_time - first_e_mail_time
+        # Change it in to HMS (hour minute seconds) formate and store it
+        elapsed_time = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
+        overview_data["time_for_all_trans"] = elapsed_time
 
     # sends an E-mail, with the report included
     msg_subject = f"Final report for transfer: {date.today()}"

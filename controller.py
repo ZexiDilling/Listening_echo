@@ -48,8 +48,12 @@ def main(config):
                 temp_counter += 1
                 full_path = f"{save_location}/{temp_file_name}.xlsx"
 
-            status = skipped_well_controller(data_location, full_path, config)
-            sg.popup(status)
+            overview_data = skipped_well_controller(data_location, full_path, config)
+            popup_answer = sg.PopupYesNo("send the report to E-mail list?")
+            if popup_answer.casefold() == "yes":
+                mail_report_sender(temp_file_name, window, config, overview_data)
+
+            sg.popup(overview_data)
 
         if event == "-LISTEN-":
             window["-KILL-"].update(value=False)
@@ -86,6 +90,16 @@ def main(config):
 
         if event == "-SHOW_PLATE_LIST-":
             window["-TEXT_FIELD-"].update(visible=values["-SHOW_PLATE_LIST-"])
+
+        if event == "reset":
+            window["-PLATE_COUNTER-"].update(value=0)
+            window["-ERROR_PLATE_COUNTER-"].update(value=0)
+            window["-TIME_TEXT-"].update(value="")
+            window["-INIT_TIME_TEXT-"].update(value="")
+            window["-ADD_TRANSFER_REPORT_TAB-"].update(value=False)
+            window["-TEXT_FIELD-"].update(value="")
+            window["-E_MAIL_REPORT-"].update(value=False)
+            window["-SEND_E_MAIL-"].update(value=False)
 
         if event == "In":
             config_heading = "Folder"
@@ -128,7 +142,6 @@ def main(config):
 
         if event == "Create Worklist":
             popup_worklist_controller(config)
-
 
 
 def progressbar(config, run, window):

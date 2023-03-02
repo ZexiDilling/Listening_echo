@@ -16,7 +16,7 @@ def _menu():
     """
     menu_top_def = [
         # ["&File", ["&Open    Ctrl-O", "&Save    Ctrl-S", "---", '&Properties', "&Exit", ]],
-        ["&Listening", ["Folder", ["In", "Out", ], "E-mail"], ],
+        ["&Listening", ["Folder", ["In", "Out", ], "E-mail", "reset"], ],
         ["&Help", ["Info", "About"]],
         ["Reports", ["Transfer", "Create Worklist", "Setup"]] #todo make these work
     ]
