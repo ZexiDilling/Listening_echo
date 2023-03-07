@@ -4,7 +4,6 @@ from watchdog.events import FileSystemEventHandler
 import time
 import smtplib
 from email.message import EmailMessage
-import os
 from os import path
 from datetime import date, datetime, timedelta
 
@@ -42,7 +41,7 @@ class MyEventHandler(FileSystemEventHandler):
         current_plate = len(plate_list)
 
         # checks if path is a directory
-        if os.path.isfile(event.src_path):
+        if path.isfile(event.src_path):
             temp_file = event.src_path
 
             if "transfer" in temp_file.casefold():
@@ -109,7 +108,7 @@ class MyEventHandler(FileSystemEventHandler):
 
         else:
             print(event.src_path)
-            print("folder is created")
+            print(f"{datetime.now()} - folder is created")
 
 
     # def on_deleted(self, event):
@@ -176,12 +175,13 @@ def _mail_error(all_data, config):
 
 def _mail_final_report(overview_data, config):
     """
-    Writes the body of the E-mail
+    Writes the body of the E-mail for the final report, including relevant information
     :param overview_data: An overview of all the data generated.
     :type overview_data: dict
     :param config: The config handler, with all the default information in the config file.
     :type config: configparser.ConfigParser
-    :return:
+    :return: The body of an E-mail
+    :rtype str
     """
 
     body = \
@@ -199,7 +199,13 @@ def _mail_final_report(overview_data, config):
 
 
 def _mail_estimated_time_body(all_data):
-    print(all_data)
+    """
+    Writes the body of the E-mail for Estimated time, with relevant information.
+    :param all_data: A dict over all data related to the estimated time
+    :type all_data: dict
+    :return: The body of an E-mail
+    :rtype str
+    """
     body = \
         f"Hey SCore people!\n" \
         f"This is the estimated finish time: {all_data['estimated_time']}.\n" \
@@ -213,6 +219,20 @@ def _mail_estimated_time_body(all_data):
 
 
 def mail_estimated_time(config, total_plates, current_plate_number, elapsed_time):
+    """
+    Set's up the information for the E-mail related to estimated time, and do calculation to come with a prediction
+    for when the full run would be done
+    and sends into the E-mail sender.
+    :param config: The config handler, with all the default information in the config file.
+    :type config: configparser.ConfigParser
+    :param total_plates: The total number of plates, that are for the full run
+    :type total_plates: int
+    :param current_plate_number: What plate the system is currently on.
+    :type current_plate_number: int
+    :param elapsed_time: how much time have gone, in seconds, since the first plate was completed, to the latest plate
+        being completed.
+    :return:
+    """
 
     difference = total_plates / current_plate_number
     total_time = difference * elapsed_time
@@ -221,9 +241,10 @@ def mail_estimated_time(config, total_plates, current_plate_number, elapsed_time
 
     time_per_plate_seconds = elapsed_time / current_plate_number
     time_per_plate = time.strftime("%Hh%Mm%Ss", time.gmtime(time_per_plate_seconds))
+    total_time_hms = time.strftime("%Hh%Mm%Ss", time.gmtime(total_time))
 
     all_data = {"estimated_time": estimated_finish_time,
-                "total_time": total_time,
+                "total_time": total_time_hms,
                 "plates_done": current_plate_number,
                 "total_plates": total_plates,
                 "time_per_plate": time_per_plate}
@@ -231,15 +252,15 @@ def mail_estimated_time(config, total_plates, current_plate_number, elapsed_time
     msg_subject = f"Estimated finish_time: {estimated_finish_time}"
     e_mail_type = "estimated_time"
     mail_setup(msg_subject, all_data, config, e_mail_type)
-    print("estimated_time sent")
+    print(f"{datetime.now()} - estimated_time sent")
 
 
-def mail_report_sender(temp_file_name, window, config, overview_data=None):
+def mail_report_sender(file_name, window, config, overview_data=None):
     """
     This function sends the final report of the transfer operation.
 
-    :param temp_file_name: The name of the temporary file where all transfer data is stored.
-    :type temp_file_name: str
+    :param file_name: The name of the temporary file where all transfer data is stored.
+    :type file_name: str
     :param window: The GUI window
     :type window: PySimpleGUI.PySimpleGUI.Window
     :param config: The config handler, with all the default information in the config file.
@@ -247,6 +268,7 @@ def mail_report_sender(temp_file_name, window, config, overview_data=None):
     :return:
     """
     # Reads the temp_file where all the trans file have been written to
+    temp_file_name = file_name.split("/")[-1]
     if not temp_file_name.startswith("Report"):
 
         file_list = read_temp_list_file(temp_file_name, config)
@@ -262,13 +284,11 @@ def mail_report_sender(temp_file_name, window, config, overview_data=None):
                 temp_counter += 1
                 full_path = f"{save_location}/{temp_report_name}.xlsx"
 
-
             # Create the report file, and saves it.
             overview_data = skipped_well_controller(file_list, full_path, config)
 
-
-        # Sleep for 10 seconds, to make sure that the report have been created before trying to send it.
-        time.sleep(5)
+        # Sleep for 2 seconds, to make sure that the report have been created before trying to send it.
+        time.sleep(2)
 
         # Get elapse time for the transfers completion
         last_e_mail_time = float(window["-TIME_TEXT-"].get())
@@ -278,12 +298,11 @@ def mail_report_sender(temp_file_name, window, config, overview_data=None):
         elapsed_time = time.strftime("%Hh%Mm%Ss", time.gmtime(elapsed))
         overview_data["time_for_all_trans"] = elapsed_time
 
-
     # sends an E-mail, with the report included
     msg_subject = f"Final report for transfer: {date.today()}"
     e_mail_type = "final_report"
     mail_setup(msg_subject, overview_data, config, e_mail_type)
-    print("sent final report")
+    print(f"{datetime.now()} - sent final report")
 
 
 def mail_setup(msg_subject, all_data, config, e_mail_type):
@@ -346,7 +365,7 @@ def mail_setup(msg_subject, all_data, config, e_mail_type):
     server.send_message(msg)
     # server.sendmail(msg["from"], msg["to"], msg.as_string())
     server.quit()
-    print("Plate error sent")
+    print(f"{datetime.now()} - send {e_mail_type} E-mail")
 
 
 def listening_controller(config, run, window):
@@ -378,7 +397,7 @@ def listening_controller(config, run, window):
     finally:
         observer.stop()
         observer.join()
-        print("done")
+        print(f"{datetime.now()} - done")
 
 
 if __name__ == "__main__":

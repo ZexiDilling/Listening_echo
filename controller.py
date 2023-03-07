@@ -51,7 +51,8 @@ def main(config):
             overview_data = skipped_well_controller(data_location, full_path, config)
             popup_answer = sg.PopupYesNo("send the report to E-mail list?")
             if popup_answer.casefold() == "yes":
-                mail_report_sender(temp_file_name, window, config, overview_data)
+                print(full_path)
+                mail_report_sender(full_path, window, config, overview_data)
 
             sg.popup(overview_data)
 
@@ -199,11 +200,11 @@ def progressbar(config, run, window):
             if total_plates >= int(config["Plate_setup"]["limit"]):
                 current_plate = int(window["-PLATE_COUNTER-"].get())
 
-                if current_plate in procent_splitter and not time_estimates_send:
-                    time_estimates_send.append(current_plate)
-                    elapsed_time = current_time - float(window["-INIT_TIME_TEXT-"].get())
-                    mail_estimated_time(config, total_plates, current_plate, elapsed_time)
-
+                if current_plate in procent_splitter:
+                    if current_plate not in time_estimates_send:
+                        time_estimates_send.append(current_plate)
+                        elapsed_time = current_time - float(window["-INIT_TIME_TEXT-"].get())
+                        mail_estimated_time(config, total_plates, current_plate, elapsed_time)
 
         if runner == "pos":
             counter += 10
