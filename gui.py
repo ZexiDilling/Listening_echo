@@ -242,7 +242,7 @@ def popup_worklist_controller(config):
             dead_vol = {"LDV": float(values["-WORKLIST_DEAD_VOL_LDV-"]), "PP": float(values["-WORKLIST_DEAD_VOL_PP-"])}
 
             specific_transfers = None
-            save_location = config["Folder"]["out"]
+            save_location = config["Folder"]["worklist"]
 
             t1 = Thread(target=new_worklist, args=(survey_folder, plate_layout_folder, trans_file, set_amount,
                                                    dead_vol, save_location, file_name, specific_transfers,

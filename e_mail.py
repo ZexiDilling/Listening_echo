@@ -276,7 +276,7 @@ def mail_report_sender(file_name, window, config, overview_data=None):
         if file_list:
             # Setup the report
             report_name = f"Report_{date.today()}"
-            save_location = config["Folder"]["out"]
+            save_location = config["Folder"]["report"]
             temp_counter = 2
             full_path = f"{save_location}/{report_name}.xlsx"
             while path.exists(full_path):
