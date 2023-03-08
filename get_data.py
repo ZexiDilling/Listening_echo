@@ -415,14 +415,13 @@ def get_xml_trans_data_printing_wells(path):
             # path = self.file_names(self.main_folder)
             doc = ET.parse(files)
             root = doc.getroot()
-
             # find amount of well that is skipped
             for wells in root.iter("printmap"):
                 wells_printed = wells.get("total")
                 if int(wells_printed) != 0:
 
-                    all_trans_data[trans_name] = {"destination_plate": "", "source_plate": "", "transferees": {},
-                                                  "date": ""}
+                    all_trans_data[trans_name] = {"destination_plate": "", "source_plate": "", "transferees": [],
+                                                         "date": ""}
 
                     for plates in root.iter("plate"):
 
@@ -440,12 +439,13 @@ def get_xml_trans_data_printing_wells(path):
 
                     # finds destination and source wells data
                     for z in range(int(wells_printed)):
+
                         dest_well = wells[z].get("dn")
                         source_well = wells[z].get("n")
                         volume = wells[z].get("vt")
-                        all_trans_data[trans_name]["transferees"] = {"destination_well": dest_well, "source_well":
-                            source_well, "volume": volume}
+                        temp_trans = {"destination_well": dest_well, "source_well": source_well, "volume": volume}
 
+                        all_trans_data[trans_name]["transferees"].append(temp_trans)
     return all_trans_data
 
 

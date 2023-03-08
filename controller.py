@@ -51,7 +51,6 @@ def main(config):
             overview_data = skipped_well_controller(data_location, full_path, config)
             popup_answer = sg.PopupYesNo("send the report to E-mail list?")
             if popup_answer.casefold() == "yes":
-                print(full_path)
                 mail_report_sender(full_path, window, config, overview_data)
 
             sg.popup(overview_data)

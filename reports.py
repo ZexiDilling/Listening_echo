@@ -298,7 +298,8 @@ def _skip_report(wb, skipped_wells, skip_well_counter, working_list, config, ove
 def _write_completed_plates(wb, zero_error_trans_plate, failed_plates, overview_data, title):
     """
     Writes a list of completed plates, failed plates, and completed sets.
-    :param wb: the workbook
+    :param wb: excel Workbook
+    :type wb: openpyxl.workbook.workbook.Workbook
     :param zero_error_trans_plate: A list of plates with zero errors
     :type zero_error_trans_plate: list
     :param failed_plates: A list of plates with errors
@@ -386,7 +387,7 @@ def skipped_well_controller(data_location, full_path, config): # TODO descriptio
     _write_to_excel_plate_transferees_list_of_plates(wb, all_trans_counter, title="Plate_trans_list")
     _write_to_excel_plate_transferees(wb, trans_plate_counter, title="Plate_trans_counter")
     _write_to_excel_error_report(wb, all_data, title="Error_Report")
-    _write_work_list(wb, working_list, title="Old_Worklist")
+    _write_work_list(wb, working_list, title="Worklist")
     _write_completed_plates(wb, zero_error_trans_plate, failed_plates, overview_data, title="Completed_plates")
     _write_trans_report(wb, trans_data, title="Trans_Report", compound_data=None, report=True)
 
@@ -423,6 +424,20 @@ def _rename_source_plates(trans_data, prefix_dict):
 
 
 def _write_trans_report(wb, trans_data, compound_data, title, report): # TODO description
+    """
+    Writes in a sheet, every transfeere of compounds, based on the xml's files from the ECHo
+    :param wb: excel Workbook
+    :type wb: openpyxl.workbook.workbook.Workbook
+    :param trans_data: All the transfered data from xml's files
+    :type trans_data: dict
+    :param compound_data: Compound data with location based on a source plate and source well
+    :type compound_data: dict or None
+    :param title: The title of the excel sheet
+    :type title: str
+    :param report: a boolean statment, to see if the it is to be used for a report with multiple sheets, or stand-alone
+    :type report: bool
+    :return:
+    """
 
     # sets row and coloumn counter for headlines
     row = 1
@@ -448,23 +463,24 @@ def _write_trans_report(wb, trans_data, compound_data, title, report): # TODO de
     ws.cell(row=row, column=col + spacer + 4, value="Source Well").font = Font(bold=True)
 
     row += 1
+    for plate_index, plates in enumerate(trans_data):
+        for trans_index, trans in enumerate(trans_data[plates]["transferees"]):
 
-    for row_index, trans in enumerate(trans_data):
-        destination_plate = trans_data[trans]["destination_plate"]
-        source_plate = trans_data[trans]["source_plate"]
-        volume = trans_data[trans]["transferees"]["volume"]
-        destination_well = trans_data[trans]["transferees"]["destination_well"]
-        source_well = trans_data[trans]["transferees"]["source_well"]
-        if compound_data:
-            compound = compound_data[source_plate][source_well]
-
-        ws.cell(row=row + row_index, column=col + 0, value=destination_plate)   #.font = Font(bold=True)
-        ws.cell(row=row + row_index, column=col + 1, value=destination_well)    #.font = Font(bold=True)
-        ws.cell(row=row + row_index, column=col + spacer + 2, value=volume)  #.font = Font(bold=True)
-        ws.cell(row=row + row_index, column=col + spacer + 3, value=source_plate)    #.font = Font(bold=True)
-        ws.cell(row=row + row_index, column=col + spacer + 4, value=source_well) #.font = Font(bold=True)
-        if not report and compound_data:
-            ws.cell(row=row + row_index, column=col + 2, value=compound)  # .font = Font(bold=True)
+            destination_plate = trans_data[plates]["destination_plate"]
+            source_plate = trans_data[plates]["source_plate"]
+            volume = trans["volume"]
+            destination_well = trans["destination_well"]
+            source_well = trans["source_well"]
+            if compound_data:
+                compound = compound_data[source_plate][source_well]
+            ws.cell(row=row, column=col + 0, value=destination_plate)   #.font = Font(bold=True)
+            ws.cell(row=row, column=col + 1, value=destination_well)    #.font = Font(bold=True)
+            ws.cell(row=row, column=col + spacer + 2, value=volume)  #.font = Font(bold=True)
+            ws.cell(row=row, column=col + spacer + 3, value=source_plate)    #.font = Font(bold=True)
+            ws.cell(row=row, column=col + spacer + 4, value=source_well) #.font = Font(bold=True)
+            if not report and compound_data:
+                ws.cell(row=row, column=col + 2, value=compound)  # .font = Font(bold=True)
+            row += 1
 
 
 def trans_report_controller(trans_data_folder, plate_layout_folder, file_name, save_location):
