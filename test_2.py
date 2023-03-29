@@ -7,17 +7,22 @@ from datetime import datetime, timedelta
 
 
 def tester(config, error):
+    specific_transfers = None
+    ending_set = 75
+    starting_set = 70
+    plate_letter = ["A", "B", "C", "D"]
 
-    procent_splitter = [1, 2, 5, 8]
-    time_estimates_send = [1]
-    current_plate = 2
+    if specific_transfers:
+        plate_range = specific_transfers
+    else:
+        plate_range = range(set_amount + 1 - starting_set)
+        print(plate_range)
 
+    for sets in plate_range:
+        for letters in plate_letter:
 
-    if current_plate in procent_splitter:
-        if current_plate not in time_estimates_send:
-
-            print("test")
-    print(time_estimates_send)
+            destination_plate = f"{sets + starting_set}-{letters}"
+            print(destination_plate)
 
 if __name__ == "__main__":
     config = configparser.ConfigParser()

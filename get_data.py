@@ -11,8 +11,8 @@ from helper_func import folder_to_files
 def well_compound_list(path):
     """
     Takes excel file with wells in clm 1 and compound name in clm 2
-    :param folder: a folder with files
-    :type folder: str
+    :param path: a folder with files
+    :type path: str
     :return: compound_data - Data for what compound is in each well, based on excel files data.
     :rtype: dict
     """

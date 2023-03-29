@@ -629,8 +629,8 @@ def _compound_to_survey(plate_layout, survey_data):
     return survey_layout
 
 
-def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amount, save_file, starting_set,
-                        specific_transfers):
+def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_set, save_file, starting_set,
+                        include_ldv, include_pp, specific_transfers):
     """
     writes two worklist for plate_printing.
     1 for LDV trans
@@ -643,13 +643,17 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amoun
     :type survey_layout: dict
     :param dead_vol_ul: dead volume for plates. There are defaults in the config.
     :type dead_vol_ul: dict
-    :param set_amount: Amount of sets to produce. This do not take into account the starting set. so set it to 50 and
+    :param ending_set: Amount of sets to produce. This do not take into account the starting set. so set it to 50 and
         starting set at 40, and it will only produce 10 sets.
-    :type set_amount: int
+    :type ending_set: int
     :param save_file: Where to save the data and what name to call it
     :type save_file: str
     :param starting_set: The number of the first set. To make it possible to start from a different number than 1
     :type starting_set: int
+    :param include_ldv: If the worklist should make a worklist for LDV - only relevant for PlatePrinting
+    :type include_ldv: bool
+    :param include_pp: If the worklist should make a worklist for PP - only relevant for PlatePrinting
+    :type include_pp: bool
     :param specific_transfers: Takes a dict over specific transfers that needs to be made. In case some plates are
         ruined for a run.
     :type specific_transfers: dict
@@ -691,15 +695,13 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amoun
         ws1.cell(row=row, column=col + temp_col, value=headline).font = Font(bold=True)    # headers_LDV:
         ws2.cell(row=row, column=col + temp_col, value=headline).font = Font(bold=True)    # headers_PP:
 
-
     if not starting_set:
         starting_set = 1
 
     if specific_transfers:
         plate_range = specific_transfers
-
     else:
-        plate_range = range(set_amount + 1 - starting_set)
+        plate_range = range(ending_set + 1 - starting_set)
 
     for sets in plate_range:
         for rows in set_compound_data:
@@ -709,7 +711,7 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amoun
                     continue
                 destination_plate = sets
             else:
-                destination_plate = f"{sets}-{plate_letter}"
+                destination_plate = f"{sets + starting_set}-{plate_letter}"
             destination_well = set_compound_data[rows]["destination_well"]
             compound = set_compound_data[rows]["compound"]
             volume_nl = float(set_compound_data[rows]["volume_nl"])
@@ -729,13 +731,19 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amoun
 
             # Change between LDV and PP trans, depending on the source plate type
             if "pp" in source_plate_origin.casefold():
-                ws = ws2
-                row_pp += 1
-                row = row_pp
+                if include_pp:
+                    ws = ws2
+                    row_pp += 1
+                    row = row_pp
+                else:
+                    continue
             else:
-                ws = ws1
-                row_ldv += 1
-                row = row_ldv
+                if include_ldv:
+                    ws = ws1
+                    row_ldv += 1
+                    row = row_ldv
+                else:
+                    continue
 
             # Check if there is survey data for the plate, and for the compound in the plate
             try:
@@ -839,8 +847,8 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amoun
     wb.save(save_file)
 
 
-def new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location,
-                 save_file_name, specific_transfers=None, starting_set=None, window=None): # TODO description
+def new_worklist(survey_folder, plate_layout_folder, file_trans, ending_set, dead_vol_ul, save_location,
+                 save_file_name,  include_ldv, include_pp, specific_transfers=None, starting_set=None, window=None):
     """
     This is the control function for making a new worklsit.
     :param survey_folder: The path to a folder where all the survey data is located
@@ -855,14 +863,18 @@ def new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dea
         The file names are the plate-barcode, the file type is excel, col-1 is the well, col-2 is the drug/compound name
     :param file_trans: A file with all the transferes needed for at-least one full set. File-type is excel
     :type: str
-    :param set_amount: amount of sets needed
-    :type set_amount: int
+    :param ending_set: amount of sets needed
+    :type ending_set: int
     :param dead_vol_ul: dead volume for plates. There are defaults in the config.
     :type dead_vol_ul: dict
     :param save_location: Where the file is saved
     :type save_location: str
     :param save_file_name: What the file is called
     :type save_file_name: str
+    :param include_ldv: If the worklist should make a worklist for LDV - only relevant for PlatePrinting
+    :type include_ldv: bool
+    :param include_pp: If the worklist should make a worklist for PP - only relevant for PlatePrinting
+    :type include_pp: bool
     :param specific_transfers: If there are specific plates that needs to be made, instaed of a full set
     :type specific_transfers: dict
     :param starting_set: What set to start at
@@ -882,7 +894,8 @@ def new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dea
     print("Got compound data")
     survey_layout = _compound_to_survey(plate_layout, survey_data)
     print("got survey layout")
-    _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, set_amount, save_file, starting_set, specific_transfers)
+    _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_set, save_file, starting_set,
+                        include_ldv, include_pp, specific_transfers)
     if window:
         window["-WORKLIST_KILL-"].update(value=True)
     print("done")

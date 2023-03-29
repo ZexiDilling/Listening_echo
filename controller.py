@@ -132,7 +132,7 @@ def main(config):
             sg.Popup(info)
 
         if event == "About":
-            sg.Popup("Echo Data Listening and analyses. Made By Charlie")
+            sg.Popup("Echo Data Listening and analyses. Programmed By Charlie for DTU SCore")
 
         if event == "Transfer":
             sg.Popup("Not working... and not sure what it should do :D ")

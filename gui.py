@@ -168,8 +168,8 @@ def _gui_popup_workilist(config):
                              target="-WORKLIST_SURVEY_FOLDER_TARGET-",
                              tooltip="Choose the folder with surveys for the source plate used to the worklist"),
              sg.Text(key="-WORKLIST_SURVEY_FOLDER_TARGET-")],
-            [sg.Text("Set Amount:"),
-             sg.Input(key="-WORKLIST_SET_AMOUNT-", tooltip="The amount of sets that worklist should include", size=5)],
+            [sg.Text("Ending Set:"),
+             sg.Input(key="-WORKLIST_ENDING_SET-", tooltip="The ending set for the worklist", size=5)],
             [sg.Text("Starting Set:"),
              sg.Input(1, key="-WORKLIST_STARTING_SET-", size=5,
                       tooltip="If you need a worklist starting from a higher number than 1")],
@@ -180,7 +180,10 @@ def _gui_popup_workilist(config):
                                       tooltip="dead volumen for the specific plate type (LDV) in uL"),
              sg.Text("PP"), sg.Input(config["Dead_vol"]["pp"], key="-WORKLIST_DEAD_VOL_PP-", size=5,
                                      tooltip="dead volumen for the specific plate type (PP) in uL")],
-            [sg.Text("Specific Transfers"), sg.Button(key="-WORKLIST_SPECIFIC_TRANS-")],
+            [sg.Text("Specific Worklist"),
+             sg.Checkbox("LDV", key="-WORKLIST_FOR_LDV-", default=True,
+                         tooltip="If checked, will add a worklist for LDV"),
+             sg.Checkbox("PP", key="-WORKLIST_FOR_PP-", tooltip="If checked, will add a worklist for PP")],
             [sg.ProgressBar(max_value=100, key="-WORKLIST_PROGRESSBAR-", expand_x=True, orientation="horizontal")],
             [sg.Checkbox("Kill Progressbar", key="-WORKLIST_KILL-", visible=False)],
             [sg.Button("Generate", expand_x=True, key="-WORKLIST_GENERATE-"),
@@ -216,13 +219,13 @@ def popup_worklist_controller(config):
             else:
                 trans_file = values["-WORKLIST_TRANS_FILE-"]
 
-            if not values["-WORKLIST_SET_AMOUNT-"]:
+            if not values["-WORKLIST_ENDING_SET-"]:
                 try:
-                    set_amount = int(sg.popup_get_text("How many sets should the worklist include?"))
+                    ending_set = int(sg.popup_get_text("What is the ending set number for the worklist?"))
                 except ValueError:
-                    set_amount = int(sg.popup_get_text("Please provide a number"))
+                    ending_set = int(sg.popup_get_text("Please provide a number"))
             else:
-                set_amount = int(values["-WORKLIST_SET_AMOUNT-"])
+                ending_set = int(values["-WORKLIST_ENDING_SET-"])
 
             if values["-WORKLIST_STARTING_SET-"]:
                 starting_set = int(values["-WORKLIST_STARTING_SET-"])
@@ -240,13 +243,14 @@ def popup_worklist_controller(config):
             else:
                 survey_folder = values["-WORKLIST_SURVEY_FOLDER-"]
             dead_vol = {"LDV": float(values["-WORKLIST_DEAD_VOL_LDV-"]), "PP": float(values["-WORKLIST_DEAD_VOL_PP-"])}
-
+            include_ldv = values["-WORKLIST_FOR_LDV-"]
+            include_pp = values["-WORKLIST_FOR_PP-"]
             specific_transfers = None
             save_location = config["Folder"]["worklist"]
 
-            t1 = Thread(target=new_worklist, args=(survey_folder, plate_layout_folder, trans_file, set_amount,
-                                                   dead_vol, save_location, file_name, specific_transfers,
-                                                   starting_set, window), daemon=True)
+            t1 = Thread(target=new_worklist, args=(survey_folder, plate_layout_folder, trans_file, ending_set,
+                                                   dead_vol, save_location, file_name, include_ldv, include_pp,
+                                                   specific_transfers, starting_set, window), daemon=True)
 
             t2 = Thread(target=worklist_progressbar, args=(True, window,), daemon=False)
             t1.start()
