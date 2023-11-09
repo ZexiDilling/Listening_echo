@@ -1,6 +1,6 @@
 import configparser
 from controller import main
-
+import pyunpack
 
 def start_up():
     config = configparser.ConfigParser()

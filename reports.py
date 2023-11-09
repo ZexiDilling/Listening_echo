@@ -1,3 +1,5 @@
+import configparser
+
 import PySimpleGUI
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl import Workbook, load_workbook
@@ -5,6 +7,9 @@ from openpyxl import Workbook, load_workbook
 from get_data import get_xml_trans_data_skipping_wells, get_xml_trans_data_printing_wells, well_compound_list,\
     get_survey_csv_data, get_all_trans_data
 import natsort
+from math import ceil
+
+from std_plates import plate_384_row
 
 
 def _write_to_excel_plate_transferees_list_of_plates(wb, data, title):
@@ -629,7 +634,7 @@ def _compound_to_survey(plate_layout, survey_data):
     return survey_layout
 
 
-def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_set, save_file, starting_set,
+def _write_new_worklist(wb, set_compound_data, survey_layout, dead_vol_ul, ending_set, starting_set,
                         include_ldv, include_pp, specific_transfers):
     """
     writes two worklist for plate_printing.
@@ -646,8 +651,6 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_se
     :param ending_set: Amount of sets to produce. This do not take into account the starting set. so set it to 50 and
         starting set at 40, and it will only produce 10 sets.
     :type ending_set: int
-    :param save_file: Where to save the data and what name to call it
-    :type save_file: str
     :param starting_set: The number of the first set. To make it possible to start from a different number than 1
     :type starting_set: int
     :param include_ldv: If the worklist should make a worklist for LDV - only relevant for PlatePrinting
@@ -660,7 +663,7 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_se
     :return: an excel file with data
 
     """
-    wb = Workbook()
+
     # Create a sheet for each transferee, as we can't run LDV and PP trans at the same time
     ws0 = wb.active
     ws1 = wb.create_sheet("LDV_trans")
@@ -671,8 +674,8 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_se
 
     # Compound dict is a dict of compounds for specific plates, where dead volume is set lower, due to missing liquids.
     # An Echo will mostly work under "dead volume".
-    compound_list = {"P23_LDV": {"Buparlisib": 2.0, "BGB-11417": 2.2}, "P23_LDV2_I2": {"Copanlisib": 2.0}}
-    # compound_list = {}
+    # compound_list = {"P23_LDV": {"Buparlisib": 2.0, "BGB-11417": 2.2}, "P23_LDV2_I2": {"Copanlisib": 2.0}}
+    compound_list = {}
 
     # Breaking is used, to make sure that all wells are used. instead of all transfers being using the last well in
     # the list
@@ -827,6 +830,7 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_se
         for headlines in headlines_report:
             ws.cell(row=row, column=col, value=headlines)
             col += 1
+        col += 1
 
     for index, plates in enumerate(failed_plate):
         if "LDV" in plates:
@@ -844,7 +848,82 @@ def _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_se
         ws.cell(row=row, column=col + 2, value=failed_plate[plates]["compound"])
         ws.cell(row=row, column=col + 3, value=failed_plate[plates]["trans_counter"])
 
-    wb.save(save_file)
+
+def _write_survey_overview(wb, survey_layout, single_set, plate_sets):
+    # Create a sheet for each transferee, as we can't run LDV and PP trans at the same time
+    ws = wb.create_sheet("Survey_overview")
+    # Setup rows for the different worksheets
+    row_ldv = 1
+    row_pp = 1
+    initial_row = 1
+    row = initial_row + 1
+    initial_col = 1
+
+    single_set_key = list(single_set.keys())[0]
+
+    all_plates = []
+    for plate_type in survey_layout:
+
+        for compound_index, compound in enumerate(survey_layout[plate_type]):
+            if compound != "No compound match found" and compound != "empty":
+                col = initial_col
+                ws.cell(row=row, column=col, value=plate_type)
+                ws.cell(row=row, column=col + 1, value=compound)
+                col += 5
+                total_total_vol = 0
+                for plates in survey_layout[plate_type][compound]:
+                    if plates not in all_plates:
+                        all_plates.append(plates)
+                    temp_wells = ""
+                    temp_vols = ""
+                    total_vol = 0
+                    for wells in survey_layout[plate_type][compound][plates]:
+                        temp_vol = survey_layout[plate_type][compound][plates][wells]
+                        temp_wells += f"{wells}, "
+                        temp_vols += f"{temp_vol}, "
+                        total_vol += float(temp_vol)
+                    temp_wells.removesuffix(", ")
+                    temp_vols.removesuffix(", ")
+                    ws.cell(row=row, column=col, value=temp_wells)
+                    ws.cell(row=row, column=col + 1, value=temp_vols)
+                    ws.cell(row=row, column=col + 2, value=total_vol)
+                    col += 3
+                    total_total_vol += total_vol
+
+                # Writes total vol in plates from survey
+                ws.cell(row=row, column=initial_col + 2, value=total_total_vol)
+
+                # Gets plate type based in volume needed for the specific compound, and writes it in
+                try:
+                    temp_vol_needed_nl = float(single_set[single_set_key][plate_type][compound]["vol_needed"]) * plate_sets
+                    temp_vol_needed_ul = temp_vol_needed_nl / 1000
+                except KeyError:
+                    ws.cell(row=row, column=initial_col + 3, value="Not needed")
+                else:
+                    ws.cell(row=row, column=initial_col + 3, value=temp_vol_needed_ul)
+
+                    # cal difference and writes it:
+                    temp_vol_difference = total_total_vol - temp_vol_needed_ul
+                    ws.cell(row=row, column=initial_col + 4, value=temp_vol_difference)
+
+                row += 1
+
+    plate_types = []
+    for plates in all_plates:
+        type = plates.split("_")[0]
+        type = f"{type}_P23"
+        if type not in plate_types:
+            plate_types.append(type)
+
+    headlines = ["Main_plate", "compound", "total_vol_uL", "needed_vol_uL", "difference_uL"]
+
+    for plate_type in plate_types:
+        headlines.append(f"{plate_type}_wells")
+        headlines.append(f"{plate_type}_vol")
+        headlines.append(f"{plate_type}_vol_total")
+
+    for headline_index, headline in enumerate(headlines):
+        ws.cell(row=initial_row, column=initial_col + headline_index, value=headline)
 
 
 def new_worklist(survey_folder, plate_layout_folder, file_trans, ending_set, dead_vol_ul, save_location,
@@ -861,6 +940,7 @@ def new_worklist(survey_folder, plate_layout_folder, file_trans, ending_set, dea
     :type survey_folder: str
     :param plate_layout_folder: The path to a folder where all the data for the plat layout is located.
         The file names are the plate-barcode, the file type is excel, col-1 is the well, col-2 is the drug/compound name
+    :type plate_layout_folder: str
     :param file_trans: A file with all the transferes needed for at-least one full set. File-type is excel
     :type: str
     :param ending_set: amount of sets needed
@@ -890,67 +970,196 @@ def new_worklist(survey_folder, plate_layout_folder, file_trans, ending_set, dea
     print("Got Survey Data")
     plate_layout = well_compound_list(plate_layout_folder)
     print("Got Plate layout")
-    _, _, set_compound_data = get_all_trans_data(file_trans)
-    print("Got compound data")
     survey_layout = _compound_to_survey(plate_layout, survey_data)
     print("got survey layout")
-    _write_new_worklist(set_compound_data, survey_layout, dead_vol_ul, ending_set, save_file, starting_set,
+    _, single_set, set_compound_data = get_all_trans_data(file_trans)
+    print("Got compound data")
+
+    # generates a workbook
+    wb = Workbook()
+
+    _write_new_worklist(wb, set_compound_data, survey_layout, dead_vol_ul, ending_set, starting_set,
                         include_ldv, include_pp, specific_transfers)
+    print("worklist done")
+    if starting_set:
+        plate_sets = ending_set - starting_set + 1
+    else:
+        plate_sets = ending_set
+    # Writes survey overview
+    _write_survey_overview(wb, survey_layout, single_set, plate_sets)
+    print("survey overview done")
+    wb.save(save_file)
+
     if window:
         window["-WORKLIST_KILL-"].update(value=True)
-    print("done")
-
+    print(f"Report done - can be found here: {save_file}")
 
 # TODO Make report for compounds needed per set.... "Survey report" - burde ligge et sted.
 # TODO make platlayout for 50 sets.
 
+
+def _calculate_write_wells(wsLDV, wsPP, single_set, set_amount):
+    plate_layout = {}
+
+    initial_row = 1
+    initial_col = 1
+
+    headlines = ["Main Plate", "Compound", "Vol_need(uL)", "Dead_vol(uL)", "Total_vol_need(uL)", "Vol_getting(uL)",
+                 "Vol_diff(uL)", "Well amounts", "Wells"]
+
+    row = initial_row
+    for sheets in range(2):
+        if sheets == 0:
+            ws = wsLDV
+            col = initial_col
+        else:
+            ws = wsPP
+            col = initial_col
+        for headline in headlines:
+            ws.cell(row=row, column=col, value=headline)
+            col += 1
+
+    col = initial_col
+
+
+
+
+    for plates in single_set["10-plate"]:       # ToDo generalise this
+        if plates == "P23_LDV":
+            ws = wsLDV
+            plate_layout[plates] = {}
+
+            # Sets volume for the plate type
+            well_vol = 9.0
+            dead_vol = 2.5
+
+            row = initial_row + 1
+            temp_plate_counter = 0
+
+        elif plates == "P23_PP":
+            ws = wsPP
+            plate_layout[plates] = {}
+
+            # Sets volume for the plate type
+            well_vol = 70.0
+            dead_vol = 20.0
+
+            row = initial_row + 1
+            temp_plate_counter = 0
+        else:
+            continue
+        workling_vol = float(well_vol - dead_vol)
+        for compound in single_set["10-plate"][plates]:
+            plate_layout[plates][compound] = []
+            for vol_needed in single_set["10-plate"][plates][compound]:
+
+                # Get volume in nL from transfere file
+                vol = single_set["10-plate"][plates][compound][vol_needed]
+                # convert to uL
+                vol = vol / 1000
+                # take into account how many sets needs to be made
+                vol *= set_amount
+                well_amounts = ceil(vol / workling_vol)
+                dead_vol_ul = dead_vol * well_amounts
+                total_vol = vol + dead_vol_ul
+                vol_get = well_amounts * well_vol
+                vol_diff = vol_get - total_vol
+                temp_wells = ""
+                for counter in range(temp_plate_counter, temp_plate_counter + well_amounts):
+                    temp_well = plate_384_row[counter]
+                    temp_wells += f"{temp_well},"
+                    plate_layout[plates][compound].append(temp_well)
+                temp_plate_counter += well_amounts
+
+                temp_wells = temp_wells.removesuffix(",")
+                ws.cell(row=row, column=col, value=plates)
+                ws.cell(row=row, column=col + 1, value=compound)
+                ws.cell(row=row, column=col + 2, value=vol)
+                ws.cell(row=row, column=col + 3, value=dead_vol_ul)
+                ws.cell(row=row, column=col + 4, value=total_vol)
+                ws.cell(row=row, column=col + 5, value=vol_get)
+                ws.cell(row=row, column=col + 6, value=vol_diff)
+                ws.cell(row=row, column=col + 7, value=well_amounts)
+                ws.cell(row=row, column=col + 8, value=temp_wells)
+
+                row += 1
+
+    return plate_layout
+
+
+def _write_plate_layout(wsLDV, wsPP, plate_layout):
+    initial_row = 1
+    initial_col = 1
+
+    headlines = ["source_well", "compound", "source_plate", "plate_type"]
+
+    row = initial_row
+    for sheets in range(2):
+        if sheets == 0:
+            ws = wsLDV
+            col = initial_col
+        else:
+            ws = wsPP
+            col = initial_col
+        for headline in headlines:
+            ws.cell(row=row, column=col, value=headline)
+            col += 1
+
+    col = initial_col
+    for counter, plate in enumerate(plate_layout):
+        row = initial_row + 1
+        if counter == 0:
+            ws = wsLDV
+        else:
+            ws = wsPP
+
+        for compound in plate_layout[plate]:
+            for wells in plate_layout[plate][compound]:
+                ws.cell(row=row, column=col, value=wells)
+                ws.cell(row=row, column=col + 1, value=compound)
+                ws.cell(row=row, column=col + 2, value=plate)
+                plate_type = plate.removeprefix("P23_")
+                ws.cell(row=row, column=col + 3, value=plate_type)
+                row += 1
+
+
+def platelayout_generator(config, file_trans, set_amount):
+
+    save_location = config["Folder"]["out"]
+
+    save_file = f"{save_location}/PlatePrinting_{set_amount}_sets.xlsx"
+    wb = Workbook()
+    # setup workseets:
+    ws0 = wb.active
+    ws0.title = "Over_View_LDV"
+    ws1 = wb.create_sheet("Over_View_PP")
+    ws2 = wb.create_sheet("Plate_Layout_LDV")
+    ws3 = wb.create_sheet("Plate_Layout_PP")
+    _, single_set, _ = get_all_trans_data(file_trans)
+    plate_layout = _calculate_write_wells(ws0, ws1, single_set, set_amount)
+    _write_plate_layout(ws2, ws3, plate_layout)
+
+
+    wb.save(save_file)
+    print("done")
+
+
 if __name__ == "__main__":
-    pass
-    # trans_data_folder = "C:/Users/phch/Desktop/more_data_files/2022-11-22"
-
-    # data_location = "C:/Users/phch/Desktop/more_data_files/2022-11-22"
-    # file_name = "test_trans_report"
-
-    # all_trans_file = "C:/Users/Openscreen/Desktop/more_data_files/all_trans.xlsx"
-    # path = "C:/Users/phch/Desktop/echo_data"
-
-
-    # #
-    # plate_layout_folder = "D:/plate_layout"
-    # save_location = "C:/Users/phch/Desktop/more_data_files/"
-    # file_trans = "D:/all_trans.xlsx"
-    # set_amount = 50
-    # starting_set = 17
-    # dead_vol_ul = {"LDV": 3, "PP": 15}
-    # save_file_name = "last_few_plates"
-    #
-    # survey_folder = "C:/Users/phch/Desktop/more_data_files/270123"
-    #
-    # plate_list = ["13-plate-C", "13-plate-D", "14-plate-B", "14-plate-C", "14-plate-D", "15-plate-C", "15-plate-D", "16-plate-C", "16-plate-D", "23-plate-C", "51-plate-C"]
-    # specific_transfers = {}
-    # for plate_names in plate_list:
-    #     specific_transfers[plate_names] = {"LDV": True, "PP": False}
-    #
-    # print(specific_transfers)
-    # #
-    # #
-    # new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location, save_file_name, specific_transfers=specific_transfers)
-
-    save_file_name = "200_setes_230223"
-    survey_folder = "C:/Users/phch/Desktop/more_data_files/full_plates"
-    plate_layout_folder = "C:/Users/phch/Desktop/more_data_files/simulated_plate_layout"
-    file_trans = "C:/Users/phch/Desktop/more_data_files/all_trans.xlsx"
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+    save_file_name = "test"
+    survey_folder = r"C:\Users\phch\Desktop\more_data_files\platePrinting\surveys\290323"
+    plate_layout_folder = r"C:\Users\phch\Desktop\more_data_files\platePrinting\plate_layout"
+    file_trans = r"C:\Users\phch\Desktop\more_data_files\platePrinting\all_trans.xlsx"
     set_amount = 200
+    ending_set = 50
     dead_vol_ul = {"LDV": 2.5, "PP": 15}
-    save_location = "C:/Users/phch/Desktop/more_data_files"
+    save_location = r"C:\Users\phch\Desktop\more_data_files\platePrinting\output"
+    include_ldv = True
+    include_pp = True
+    plate_sets = 50
 
-
-
-    new_worklist(survey_folder, plate_layout_folder, file_trans, set_amount, dead_vol_ul, save_location, save_file_name)
-
-
-    # trans_report_controller(trans_data_folder, plate_layout_folder, all_trans_file, data_location, file_name, save_location)
-    # well_report(all_trans_file)
-
-    # print(file_names(path))
-
+    platelayout_generator(config, file_trans, 115)
+    # new_worklist(survey_folder, plate_layout_folder, file_trans, ending_set, dead_vol_ul, save_location,
+    #              save_file_name,  include_ldv, include_pp, specific_transfers=None, starting_set=None, window=None)
+    # survey_overview(survey_folder, plate_layout_folder, save_location, save_file_name, file_trans, plate_sets)

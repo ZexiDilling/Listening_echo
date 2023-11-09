@@ -60,7 +60,6 @@ def get_all_trans_data(file_trans):
     :rtype single_set: dict
     :rtype single_set_working_list: dict
     """
-
     all_plate_trans = {}
     is_first_set = True
     first_set = None
@@ -116,6 +115,7 @@ def get_all_trans_data(file_trans):
                 if col == 4:
                     temp_vol = float(cells.value)
 
+
                 # if col == 5:
                 #     temp_source_well = cells.value
 
@@ -149,7 +149,7 @@ def get_all_trans_data(file_trans):
             try:
                 all_plate_trans[temp_plate][temp_source_plate][temp_compound]["vol_needed"] += temp_vol
             except KeyError:
-                all_plate_trans[temp_plate][temp_source_plate][temp_compound]["vol_needed"] = 0
+                all_plate_trans[temp_plate][temp_source_plate][temp_compound]["vol_needed"] = temp_vol
 
             try:
                 all_plate_trans[temp_plate[:-2]][temp_source_plate][temp_compound]
@@ -158,7 +158,8 @@ def get_all_trans_data(file_trans):
             try:
                 all_plate_trans[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] += temp_vol
             except KeyError:
-                all_plate_trans[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] = 0
+                all_plate_trans[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] = temp_vol
+
 
             if is_first_set:
                 try:
@@ -167,8 +168,10 @@ def get_all_trans_data(file_trans):
                     single_set[temp_plate[:-2]][temp_source_plate][temp_compound] = {}
                 try:
                     single_set[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] += temp_vol
+
                 except KeyError:
-                    single_set[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] = 0
+                    single_set[temp_plate[:-2]][temp_source_plate][temp_compound]["vol_needed"] = temp_vol
+
 
                 single_set_working_list[row] = {"destination_plate": temp_destination_plate,
                                                 "destination_well": temp_dest_well,
