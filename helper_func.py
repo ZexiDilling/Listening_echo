@@ -113,6 +113,7 @@ def read_temp_list_file(temp_file_name, config):
     else:
         return None
 
+
 def folder_to_files(folder_path):
     """
     Gets a list of all files in a folder and its subfolders
@@ -132,6 +133,7 @@ def folder_to_files(folder_path):
             file_list.append(os.path.join(root, file))
 
     return file_list
+
 
 if __name__ == "__main__":
     import configparser
