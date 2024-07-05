@@ -159,15 +159,15 @@ def _gui_popup_workilist(config):
             [sg.FolderBrowse("Plate Layout:", key="-WORKLIST_PLATE_LAYOUT_FOLDER-",
                              target="-WORKLIST_PLATE_LAYOUT_FOLDER_TARGET-",
                              tooltip="Choose a folder with Excel sheet describing what compound is in each well"),
-             sg.Text(key="-WORKLIST_PLATE_LAYOUT_FOLDER_TARGET-")],
+             sg.Input(key="-WORKLIST_PLATE_LAYOUT_FOLDER_TARGET-")],
             [sg.FileBrowse("Transfer File:", key="-WORKLIST_TRANS_FILE-",
                            target="-WORKLIST_TRANS_FILE_TARGET-",
                            tooltip="Choose an excel file with all transfers for min one full set"),
-             sg.Text(key="-WORKLIST_TRANS_FILE_TARGET-")],
+             sg.Input(key="-WORKLIST_TRANS_FILE_TARGET-")],
             [sg.FolderBrowse("Surveys", key="-WORKLIST_SURVEY_FOLDER-",
                              target="-WORKLIST_SURVEY_FOLDER_TARGET-",
                              tooltip="Choose the folder with surveys for the source plate used to the worklist"),
-             sg.Text(key="-WORKLIST_SURVEY_FOLDER_TARGET-")],
+             sg.Input(key="-WORKLIST_SURVEY_FOLDER_TARGET-")],
             [sg.Text("Ending Set:"),
              sg.Input(key="-WORKLIST_ENDING_SET-", tooltip="The ending set for the worklist", size=5)],
             [sg.Text("Starting Set:"),
@@ -208,22 +208,22 @@ def popup_worklist_controller(config):
             break
 
         if event == "-WORKLIST_GENERATE-":
-            if not values["-WORKLIST_PLATE_LAYOUT_FOLDER-"]:
+            if not values["-WORKLIST_PLATE_LAYOUT_FOLDER_TARGET-"]:
                 plate_layout_folder = sg.PopupGetFolder("Please select a folder with layout for all the source plates "
                                                         "included in the worklist")
             else:
-                plate_layout_folder = values["-WORKLIST_PLATE_LAYOUT_FOLDER-"]
+                plate_layout_folder = values["-WORKLIST_PLATE_LAYOUT_FOLDER_TARGET-"]
 
-            if not values["-WORKLIST_TRANS_FILE-"]:
-                trans_file = sg.FileBrowse("Choose an excel file with all transfers for min one full set")
+            if not values["-WORKLIST_TRANS_FILE_TARGET-"]:
+                trans_file = sg.PopupGetFolder("Choose an excel file with all transfers for min one full set")
             else:
-                trans_file = values["-WORKLIST_TRANS_FILE-"]
+                trans_file = values["-WORKLIST_TRANS_FILE_TARGET-"]
 
             if not values["-WORKLIST_ENDING_SET-"]:
                 try:
-                    ending_set = int(sg.popup_get_text("What is the ending set number for the worklist?"))
+                    ending_set = int(sg.PopupGetText("What is the ending set number for the worklist?"))
                 except ValueError:
-                    ending_set = int(sg.popup_get_text("Please provide a number"))
+                    ending_set = int(sg.PopupGetText("Please provide a number"))
             else:
                 ending_set = int(values["-WORKLIST_ENDING_SET-"])
 
@@ -237,16 +237,16 @@ def popup_worklist_controller(config):
             else:
                 file_name = values["-WORKLIST_FILE_NAME-"]
 
-            if not values["-WORKLIST_SURVEY_FOLDER-"]:
-                survey_folder = sg.FolderBrowse("Choose the folder with surveys for the source plate used to the "
+            if not values["-WORKLIST_SURVEY_FOLDER_TARGET-"]:
+                survey_folder = sg.PopupGetFolder("Choose the folder with surveys for the source plate used to the "
                                                 "worklist")
             else:
-                survey_folder = values["-WORKLIST_SURVEY_FOLDER-"]
+                survey_folder = values["-WORKLIST_SURVEY_FOLDER_TARGET-"]
             dead_vol = {"LDV": float(values["-WORKLIST_DEAD_VOL_LDV-"]), "PP": float(values["-WORKLIST_DEAD_VOL_PP-"])}
             include_ldv = values["-WORKLIST_FOR_LDV-"]
             include_pp = values["-WORKLIST_FOR_PP-"]
             specific_transfers = None
-            save_location = config["Folder"]["worklist"]
+            save_location = config["Folder"]["out"]
 
             t1 = Thread(target=new_worklist, args=(survey_folder, plate_layout_folder, trans_file, ending_set,
                                                    dead_vol, save_location, file_name, include_ldv, include_pp,

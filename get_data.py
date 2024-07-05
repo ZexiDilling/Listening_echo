@@ -195,6 +195,7 @@ def get_survey_csv_data(path):
     :rtype: dict
     """
     survey_data = {}
+    print(path)
     if os.path.isdir(path):
         file_list = folder_to_files(path)
     else:

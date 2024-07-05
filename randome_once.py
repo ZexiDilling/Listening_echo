@@ -20,12 +20,15 @@ def convert(file, save_location):
     compound_data = {}
 
     for row_index, row in enumerate(ws.iter_rows()):
-        if row_index > 3:
+
+        if row_index > 0:
             for cell_index, cell in enumerate(row):
-                if cell_index == 0 and cell.value:
+                if cell_index == 1 and cell.value:
+
                     temp_compound = cell.value
 
-                if cell_index == 4 and cell.value:
+                if cell_index == 3 and cell.value:
+                    print(cell.value)
                     try:
                         compound_data[temp_compound]
                     except KeyError:
@@ -55,6 +58,6 @@ def convert(file, save_location):
 
 
 if __name__ == "__main__":
-    file = "C:/Users/phch/Desktop/more_data_files/new_ldvs_raw.xlsx"
-    save_file = "C:/Users/phch/Desktop/more_data_files/new_compound_ldv.xlsx"
+    file = r"C:\Users\phch\OneDrive - Danmarks Tekniske Universitet\Mapper\Python_data\platePrinting\plate_print_P5_layout.xlsx"
+    save_file = r"C:\Users\phch\OneDrive - Danmarks Tekniske Universitet\Mapper\Python_data\platePrinting\P5_ldv.xlsx"
     convert(file, save_file)

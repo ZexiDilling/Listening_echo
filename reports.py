@@ -1,4 +1,5 @@
 import configparser
+import os
 
 import PySimpleGUI
 from openpyxl.styles import PatternFill, Font, Alignment
@@ -627,7 +628,6 @@ def _compound_to_survey(plate_layout, survey_data):
                     # if not already present
                     if plate_name not in survey_layout[plate][compound]:
                         survey_layout[plate][compound][plate_name] = {}
-
                     # set the value for the well to the volume
                     survey_layout[plate][compound][plate_name][well] = float(volume)
 
@@ -963,8 +963,11 @@ def new_worklist(survey_folder, plate_layout_folder, file_trans, ending_set, dea
     :type window: PySimpleGUI.PySimpleGUI.Window
     :return: None
     """
+    folder_path = f"{save_location}/worklist"
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
-    save_file = f"{save_location}/{save_file_name}.xlsx"
+    save_file = f"{save_location}/worklist/{save_file_name}.xlsx"
 
     survey_data = get_survey_csv_data(survey_folder)
     print("Got Survey Data")

@@ -217,8 +217,6 @@ def progressbar(config, run, window):
             run = False
 
 
-
-
 if __name__ == "__main__":
     import configparser
     config = configparser.ConfigParser()
